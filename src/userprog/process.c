@@ -2,6 +2,7 @@
 #include "filesys/directory.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
+#include "hash.h"
 #include "list.h"
 #include "threads/flags.h"
 #include "threads/init.h"
@@ -298,6 +299,8 @@ load (const struct prog_args *prog_args, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
+
+  hash_init(&t->spt, spt_entry_hash, spt_entry_less, NULL);
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -613,6 +616,11 @@ static bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
+
+  /* Add page to SPT */
+  struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
+  spt_entry->page = upage;
+  hash_insert(&t->spt, &spt_entry->elem);
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */

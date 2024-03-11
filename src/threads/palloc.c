@@ -6,9 +6,15 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include "devices/block.h"
+#include "hash.h"
+#include "random.h"
+#include "stdlib.h"
 #include "threads/loader.h"
 #include "threads/synch.h"
+#include "threads/thread.h"
 #include "threads/vaddr.h"
 
 /* Page allocator.  Hands out memory in page-size (or
@@ -96,6 +102,34 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
       if (flags & PAL_ASSERT)
         PANIC ("palloc_get: out of pages");
     }
+
+  if(flags & PAL_USER) {
+    uint32_t start_idx = ((uint32_t) pages - (uint32_t) PHYS_BASE - 1048576) / 4096;
+    uint32_t **fr_tbl_addr = PHYS_BASE + start_idx * 4;
+    for (unsigned offset = 0; offset < page_cnt; offset++) {
+      fr_tbl_addr = fr_tbl_addr + (uint32_t) + 4 * offset;
+      fr_tbl_addr[0] = pages + offset * 4096;
+    }
+  }
+
+  int r = random_ulong() % PGSIZE;
+  uint32_t **fr_table_addr = PHYS_BASE;
+  void *page_to_swap = fr_table_addr[r];
+  uint32_t *swap_slots_bitmap = PHYS_BASE + (1 << 19);
+  int swap_slot = -1;
+  for (int i = 0; i < PGSIZE; i++) {
+    if (swap_slots_bitmap[i] == 1)
+      continue;
+    block_write(block_get_role(BLOCK_SWAP), i, page_to_swap);
+    swap_slots_bitmap[i] = 1;
+    swap_slot = i;
+    break;
+  }
+
+  struct spt_entry s = { .page = page_to_swap };
+  struct hash_elem *e = hash_find(&thread_current()->spt, &s.elem);
+  struct spt_entry *found = hash_entry(e, struct spt_entry, elem);
+  found->swap_slot = swap_slot;
 
   return pages;
 }
