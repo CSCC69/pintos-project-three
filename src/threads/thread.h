@@ -113,8 +113,6 @@ struct thread
     struct list_elem childelem;         /* List element for child_threads */
     struct list child_threads;          /* Child threads */
 
-    struct hash spt;                    /* Supplemental page table */
-
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -122,13 +120,6 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
-  };
-
-  struct spt_entry
-  {
-    void *page;
-    int swap_slot;
-    struct hash_elem elem;
   };
 
   /* An instance of an opened file, associated with a file descriptor */
@@ -158,9 +149,6 @@ int add_fd_file (struct thread *t, struct file *f);
 void remove_fd_file (struct thread *t, int fd);
 struct file *get_open_file (struct thread *t, int fd);
 struct fd_file *get_fd_file (struct thread *t, int fd_file_);
-
-unsigned spt_entry_hash (const struct hash_elem *spt_entry, void *aux UNUSED);
-bool spt_entry_less (const struct hash_elem *spt_entry_1, const struct hash_elem *spt_entry_2, void *aux UNUSED);
 
 void thread_init (void);
 void thread_start (void);

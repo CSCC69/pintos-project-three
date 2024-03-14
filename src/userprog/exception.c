@@ -1,10 +1,8 @@
 #include "userprog/exception.h"
-#include "hash.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/gdt.h"
-#include "userprog/pagedir.h"
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -180,15 +178,6 @@ page_fault (struct intr_frame *f)
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-
-  void* page_with_fault = pagedir_get_page(thread_current()->pagedir, fault_addr);
-  struct spt_entry entry_to_find = { .page = page_with_fault };
-  struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
-  struct spt_entry *found = hash_entry(elem, struct spt_entry, elem);
-  printf("Faulting page: %p\n", found->page);
-
-  if (found->swap_slot >= 0)
-    printf("Page %p was swapped to slot %d", found->page, found->swap_slot);
 
   kill (f);
 }

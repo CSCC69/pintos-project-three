@@ -15,7 +15,6 @@
 #include "devices/timer.h"
 #include "devices/vga.h"
 #include "devices/rtc.h"
-#include "stdint.h"
 #include "threads/interrupt.h"
 #include "threads/io.h"
 #include "threads/loader.h"
@@ -96,8 +95,6 @@ main (void)
           init_ram_pages * PGSIZE / 1024);
 
   /* Initialize memory system. */
-  memset (PHYS_BASE, 0, PGSIZE);
-  memset ((void*)((uint32_t)PHYS_BASE + (1 << 19)), 0, PGSIZE);
   palloc_init (user_page_limit);
   malloc_init ();
   paging_init ();
