@@ -5,8 +5,15 @@
 #include <stdlib.h>
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
+#include "swap.h"
 
 struct hash frame_table;
+
+struct hash
+get_frame_table(void)
+{
+  return frame_table;
+}
 
 void
 falloc_init (void)
@@ -21,7 +28,9 @@ falloc_get_frame (enum palloc_flags flags)
   void *page = palloc_get_page(flags | PAL_USER);
 
   if (page == NULL)
-    PANIC("out of frames");
+  {
+    struct frame *newly_free_frame = page_swap_out();
+  }
 
   f->start_addr = page;
   hash_insert(&frame_table, &f->elem);
