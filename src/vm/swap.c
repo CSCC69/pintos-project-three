@@ -8,7 +8,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 
-struct bitmap *used_map;
+struct bitmap *used_map = NULL;
 
 void 
 swap_init(void)

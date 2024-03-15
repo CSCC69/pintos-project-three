@@ -23,6 +23,7 @@
 #include "vm/frame.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+#include "vm/swap.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -99,6 +100,7 @@ main (void)
   palloc_init (user_page_limit);
   malloc_init ();
   falloc_init();
+  swap_init();
   paging_init ();
 
   /* Segmentation. */
