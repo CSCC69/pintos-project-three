@@ -20,6 +20,7 @@
 #include "threads/loader.h"
 #include "threads/malloc.h"
 #include "threads/palloc.h"
+#include "vm/frame.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
 #ifdef USERPROG
@@ -97,6 +98,7 @@ main (void)
   /* Initialize memory system. */
   palloc_init (user_page_limit);
   malloc_init ();
+  falloc_init();
   paging_init ();
 
   /* Segmentation. */
