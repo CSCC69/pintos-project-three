@@ -1,4 +1,5 @@
 #include "userprog/exception.h"
+#include "stdio.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
@@ -182,6 +183,8 @@ page_fault (struct intr_frame *f)
   void* page_with_fault = pagedir_get_page(thread_current()->pagedir, fault_addr);
   struct spt_entry entry_to_find = { .page = page_with_fault };
   struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
+  if (elem == NULL)
+    kill(f);
   struct spt_entry *found = hash_entry(elem, struct spt_entry, elem);
   printf("Faulting page: %p\n", found->page);
 

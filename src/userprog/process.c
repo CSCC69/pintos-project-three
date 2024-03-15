@@ -300,14 +300,14 @@ load (const struct prog_args *prog_args, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+  /* Initialize supplemental page table */
+  hash_init(&t->spt, spt_entry_hash, spt_entry_less, NULL);
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL)
     goto done;
   process_activate ();
-
-  /* Initialize supplemental page table */
-  hash_init(&t->spt, spt_entry_hash, spt_entry_less, NULL);
 
   /* Open executable file. */
   file = filesys_open (prog_args->name);
