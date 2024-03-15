@@ -125,13 +125,6 @@ struct thread
   };
 
 
-struct spt_entry
-  {
-    void *page;
-    int swap_slot;
-    struct hash_elem elem;
-  };
-
   /* An instance of an opened file, associated with a file descriptor */
   struct fd_file
     {

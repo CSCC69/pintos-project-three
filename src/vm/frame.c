@@ -9,10 +9,10 @@
 
 struct hash frame_table;
 
-struct hash
+struct hash*
 get_frame_table(void)
 {
-  return frame_table;
+  return &frame_table;
 }
 
 void
@@ -25,11 +25,11 @@ void *
 falloc_get_frame (enum palloc_flags flags)
 {
   struct frame *f = malloc(sizeof(struct frame));
-  void *page = palloc_get_page(flags | PAL_USER);
+  void *page = NULL;
 
-  if (page == NULL)
+  while ((page = palloc_get_page(flags | PAL_USER)) == NULL)
   {
-    struct frame *newly_free_frame = page_swap_out();
+    frame_evict_page();
   }
 
   f->start_addr = page;

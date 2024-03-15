@@ -14,6 +14,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include "vm/page.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif

@@ -8,7 +8,7 @@ struct frame
     void *start_addr;
   };
 
-struct hash get_frame_table(void);
+struct hash *get_frame_table(void);
 
 void falloc_init (void);
 void *falloc_get_frame (enum palloc_flags);

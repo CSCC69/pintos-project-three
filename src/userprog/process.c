@@ -12,6 +12,7 @@
 #include "threads/vaddr.h"
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
+#include "vm/page.h"
 #include "userprog/tss.h"
 #include "vm/frame.h"
 #include <debug.h>
@@ -621,6 +622,7 @@ install_page (void *upage, void *kpage, bool writable)
   /* Add page to SPT */
   struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
   spt_entry->page = upage;
+  spt_entry->swap_slot = -1;
   hash_insert(&t->spt, &spt_entry->elem);
 
   /* Verify that there's not already a page at that virtual
