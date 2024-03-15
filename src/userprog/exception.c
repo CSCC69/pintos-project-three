@@ -179,5 +179,17 @@ page_fault (struct intr_frame *f)
           write ? "writing" : "reading",
           user ? "user" : "kernel");
 
+  void* page_with_fault = pagedir_get_page(thread_current()->pagedir, fault_addr);
+  struct spt_entry entry_to_find = { .page = page_with_fault };
+  struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
+  struct spt_entry *found = hash_entry(elem, struct spt_entry, elem);
+  printf("Faulting page: %p\n", found->page);
+
+  kill(f);
+  
+
+if (found->swap_slot >= 0)
+  printf("Page %p was swapped to slot %d", found->page, found->swap_slot);
+
   kill (f);
 }

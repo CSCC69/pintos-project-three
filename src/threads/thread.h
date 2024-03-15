@@ -113,6 +113,8 @@ struct thread
     struct list_elem childelem;         /* List element for child_threads */
     struct list child_threads;          /* Child threads */
 
+    struct hash spt;                    /* Supplemental page table */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -122,14 +124,22 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
+
+struct spt_entry
+  {
+    void *page;
+    int swap_slot;
+    struct hash_elem elem;
+  };
+
   /* An instance of an opened file, associated with a file descriptor */
   struct fd_file
-  {
-    int fd;
-    struct file *file;
-    struct hash_elem hash_elem;
-    struct list_elem list_elem;
-  };
+    {
+      int fd;
+      struct file *file;
+      struct hash_elem hash_elem;
+      struct list_elem list_elem;
+    };
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -141,6 +151,9 @@ bool fd_file_less (const struct hash_elem *fd1_file_,
                    const struct hash_elem *fd2_file_, void *aux UNUSED);
 bool fd_closed_less (const struct list_elem *fd1_file_,
                      const struct list_elem *fd2_file_, void *aux UNUSED);
+
+unsigned spt_entry_hash (const struct hash_elem *spt_entry, void *aux UNUSED);
+bool spt_entry_less (const struct hash_elem *spt_entry_1, const struct hash_elem *spt_entry_2, void *aux UNUSED);
 
 void free_fds (struct thread *t);
 void fd_destroyer (struct hash_elem *e, void *aux UNUSED);

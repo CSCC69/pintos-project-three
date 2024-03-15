@@ -645,6 +645,19 @@ fd_file_less (const struct hash_elem *fd1_file_,
   return fd1_file->fd < fd2_file->fd;
 }
 
+unsigned
+spt_entry_hash(const struct hash_elem *spt_entry_, void *aux UNUSED)
+{
+  const struct spt_entry *spt_entry = hash_entry(spt_entry_, struct spt_entry, elem);
+  return hash_int((uint32_t)spt_entry->page);
+}
+
+bool
+spt_entry_less (const struct hash_elem *spt_entry_1, const struct hash_elem *spt_entry_2, void *aux UNUSED)
+{
+  return hash_entry(spt_entry_1, struct spt_entry, elem)->page < hash_entry(spt_entry_2, struct spt_entry, elem)->page;
+}
+
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
    returns a pointer to the frame's base. */
 static void *

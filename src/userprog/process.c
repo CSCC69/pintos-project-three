@@ -306,6 +306,9 @@ load (const struct prog_args *prog_args, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  /* Initialize supplemental page table */
+  hash_init(&t->spt, spt_entry_hash, spt_entry_less, NULL);
+
   /* Open executable file. */
   file = filesys_open (prog_args->name);
   if (file == NULL)
@@ -614,6 +617,11 @@ static bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
+
+  /* Add page to SPT */
+  struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
+  spt_entry->page = upage;
+  hash_insert(&t->spt, &spt_entry->elem);
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
