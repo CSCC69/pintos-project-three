@@ -482,6 +482,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
+  /* Add page to SPT */
+  struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
+  spt_entry->page = upage;
+  spt_entry->swap_slot = -1;
+
+  spt_entry->executable 
+  hash_insert(&thread_current()->spt, &spt_entry->elem);
+
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0)
     {
@@ -492,14 +500,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = falloc_get_frame (PAL_USER);
+      uint8_t *kpage = palloc_get_page(0);
       if (kpage == NULL)
         return false;
 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
-          falloc_free_frame (kpage);
+          palloc_free_page (kpage);
           return false;
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
@@ -507,7 +515,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable))
         {
-          falloc_free_frame (kpage);
+          palloc_free_page (kpage);
           return false;
         }
 

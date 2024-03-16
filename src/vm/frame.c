@@ -29,7 +29,7 @@ falloc_get_frame (enum palloc_flags flags)
 
   while ((page = palloc_get_page(flags | PAL_USER)) == NULL)
   {
-    frame_evict_page();
+    swap_evict();
   }
 
   f->start_addr = page;

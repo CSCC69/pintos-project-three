@@ -8,7 +8,7 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "vm/frame.h"
-#include "vm/page.h"
+#include "vm/swap.h"
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -195,15 +195,7 @@ page_fault (struct intr_frame *f)
 
   if (found->swap_slot != -1)
   {
-    void *frame = falloc_get_frame(PAL_USER);
-
-    for (int i = 0; i < PGSIZE / BLOCK_SECTOR_SIZE; i++)
-    {
-      block_read(block_get_role(BLOCK_SWAP), found->swap_slot + i, frame);
-      frame += BLOCK_SECTOR_SIZE;
-    }
-
-    pagedir_set_page(thread_current()->pagedir, found->page, frame, true);
+    swap_load(found);
   }
 
   kill(f);
