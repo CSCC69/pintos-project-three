@@ -413,8 +413,6 @@ load (const struct prog_args *prog_args, void (**eip) (void), void **esp)
 
 /* load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
-
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
 static bool
@@ -487,43 +485,15 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   spt_entry->page = upage;
   spt_entry->swap_slot = -1;
 
-  spt_entry->executable 
+  spt_entry->executable_data = malloc(sizeof(struct executable_data));
+  spt_entry->executable_data->file = file;
+  spt_entry->executable_data->ofs = ofs;
+  spt_entry->executable_data->upage = upage;
+  spt_entry->executable_data->read_bytes = read_bytes;
+  spt_entry->executable_data->zero_bytes = zero_bytes;
+  spt_entry->executable_data->writable = writable;
   hash_insert(&thread_current()->spt, &spt_entry->elem);
 
-  file_seek (file, ofs);
-  while (read_bytes > 0 || zero_bytes > 0)
-    {
-      /* Calculate how to fill this page.
-         We will read PAGE_READ_BYTES bytes from FILE
-         and zero the final PAGE_ZERO_BYTES bytes. */
-      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-      size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-      /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page(0);
-      if (kpage == NULL)
-        return false;
-
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false;
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable))
-        {
-          palloc_free_page (kpage);
-          return false;
-        }
-
-      /* Advance. */
-      read_bytes -= page_read_bytes;
-      zero_bytes -= page_zero_bytes;
-      upage += PGSIZE;
-    }
   return true;
 }
 
@@ -622,7 +592,7 @@ setup_stack (void **esp, const struct prog_args *prog_args)
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
-static bool
+bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();

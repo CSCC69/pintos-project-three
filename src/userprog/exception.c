@@ -8,10 +8,12 @@
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "vm/frame.h"
+#include "userprog/process.h"
 #include "vm/swap.h"
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -171,9 +173,9 @@ page_fault (struct intr_frame *f)
       return;
     }
 
-  if (fault_addr >= PHYS_BASE 
-    || (void *)pagedir_get_page (thread_current ()->pagedir,
-                                 fault_addr) == NULL)
+  if (fault_addr >= PHYS_BASE )
+    //|| (void *)pagedir_get_page (thread_current ()->pagedir,
+                                 //fault_addr) == NULL)
     exit (-1);
 
   /* To implement virtual memory, delete the rest of the function
@@ -189,7 +191,10 @@ page_fault (struct intr_frame *f)
   struct spt_entry entry_to_find = { .page = page_with_fault };
   struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
   if (elem == NULL)
-    kill(f);
+  {
+    entry_to_find.page = (void*)0x8048000;
+    elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
+  }
   struct spt_entry *found = hash_entry(elem, struct spt_entry, elem);
   printf("Faulting page: %p\n", found->page);
 
@@ -198,11 +203,49 @@ page_fault (struct intr_frame *f)
     swap_load(found);
   }
 
-  kill(f);
-  
+  if (found->executable_data != NULL)
+  {
+    struct file *file = found->executable_data->file;
+    off_t ofs = found->executable_data->ofs;
+    uint8_t *upage = found->executable_data->upage;
+    uint32_t read_bytes = found->executable_data->read_bytes;
+    uint32_t zero_bytes = found->executable_data->zero_bytes;
+    bool writable = found->executable_data->writable;
+    file_seek (file, ofs);
+    while (read_bytes > 0 || zero_bytes > 0)
+      {
+        /* Calculate how to fill this page.
+           We will read PAGE_READ_BYTES bytes from FILE
+           and zero the final PAGE_ZERO_BYTES bytes. */
+        size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+        size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-if (found->swap_slot >= 0)
-  printf("Page %p was swapped to slot %d", found->page, found->swap_slot);
+        /* Get a page of memory. */
+        uint8_t *kpage = palloc_get_page(0);
+        if (kpage == NULL)
+          kill(f);
 
-  kill (f);
+        /* Load this page. */
+        if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+          {
+            palloc_free_page (kpage);
+            kill(f);
+          }
+        memset (kpage + page_read_bytes, 0, page_zero_bytes);
+
+        /* Add the page to the process's address space. */
+        if (!install_page (upage, kpage, writable)) // TODO adding to spt is a problem here since we manually add to spt in load_segment
+          {
+            palloc_free_page (kpage);
+            kill(f);
+          }
+
+        /* Advance. */
+        read_bytes -= page_read_bytes; //TODO maybe track this in struct and load each page lazily instead of entire code on first page fault
+        zero_bytes -= page_zero_bytes;
+        upage += PGSIZE;
+
+      // TODO; tomorrow need to verify if the code segment is being properly loaded and if its now page faulting at initialized data segment
+      }
+  }
 }

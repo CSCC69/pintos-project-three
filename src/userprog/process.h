@@ -19,4 +19,6 @@ void process_activate (void);
 void free_thread_and_childs (struct thread *parent);
 void free_childs (struct thread *parent);
 
+bool install_page (void *upage, void *kpage, bool writable);
+
 #endif /* userprog/process.h */
