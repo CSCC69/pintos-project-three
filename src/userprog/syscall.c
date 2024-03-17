@@ -106,6 +106,8 @@ syscall_handler (struct intr_frame *f)
 
   verify_stack_pointer_word (esp);
 
+  thread_current()->esp = esp;
+
   int syscall_number = *(int *)esp;
   esp += sizeof (int);
 
