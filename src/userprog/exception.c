@@ -198,8 +198,10 @@ page_fault (struct intr_frame *f)
     entry_to_find.page = pg_round_down(fault_addr);
     elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
   }
-  struct spt_entry *found = hash_entry(elem, struct spt_entry, elem);
-  //printf("Faulting page: %p\n", found->page);
+  struct spt_entry *found = NULL;
+  if (elem != NULL) {
+   found = hash_entry(elem, struct spt_entry, elem);
+  }
 
   if (found->swap_slot != -1)
   {
@@ -208,47 +210,46 @@ page_fault (struct intr_frame *f)
 
   if (found->executable_data != NULL)
   {
-    struct file *file = found->executable_data->file;
-    off_t ofs = found->executable_data->ofs;
-    uint8_t *upage = found->executable_data->upage;
-    uint32_t read_bytes = found->executable_data->read_bytes;
-    uint32_t zero_bytes = found->executable_data->zero_bytes;
-    bool writable = found->executable_data->writable;
-    file_seek (file, ofs);
-    while (read_bytes > 0 || zero_bytes > 0)
+   struct file *file = found->executable_data->file;
+   off_t ofs = found->executable_data->ofs;
+   uint8_t *upage = found->executable_data->upage;
+   uint32_t read_bytes = found->executable_data->read_bytes;
+   uint32_t zero_bytes = found->executable_data->zero_bytes;
+   bool writable = found->executable_data->writable;
+   file_seek (file, ofs);
+
+   /* Calculate how to fill this page.
+      We will read PAGE_READ_BYTES bytes from FILE
+      and zero the final PAGE_ZERO_BYTES bytes. */
+   size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+   size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+   /* Get a page of memory. */
+   uint8_t *kpage = palloc_get_page(PAL_USER);
+   if (kpage == NULL)
+      kill(f);
+
+   /* Load this page. */
+   if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
       {
-        /* Calculate how to fill this page.
-           We will read PAGE_READ_BYTES bytes from FILE
-           and zero the final PAGE_ZERO_BYTES bytes. */
-        size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-        size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
-        /* Get a page of memory. */
-        uint8_t *kpage = palloc_get_page(PAL_USER);
-        if (kpage == NULL)
-          kill(f);
-
-        /* Load this page. */
-        if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-          {
-            palloc_free_page (kpage);
-            kill(f);
-          }
-        memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-        /* Add the page to the process's address space. */
-        if (!install_page (upage, kpage, writable)) // TODO adding to spt is a problem here since we manually add to spt in load_segment
-          {
-            palloc_free_page (kpage);
-            kill(f);
-          }
-
-        /* Advance. */
-        read_bytes -= page_read_bytes; //TODO maybe track this in struct and load each page lazily instead of entire code on first page fault
-        zero_bytes -= page_zero_bytes;
-        upage += PGSIZE;
-
-      // TODO; tomorrow need to verify if the code segment is being properly loaded and if its now page faulting at initialized data segment
+      palloc_free_page (kpage);
+      kill(f);
       }
+   memset (kpage + page_read_bytes, 0, page_zero_bytes);
+
+   /* Add the page to the process's address space. */
+   if (!install_page (upage, kpage, writable)) // TODO adding to spt is a problem here since we manually add to spt in load_segment
+      {
+      palloc_free_page (kpage);
+      kill(f);
+      }
+
+   /* Advance. */
+   read_bytes -= page_read_bytes; //TODO maybe track this in struct and load each page lazily instead of entire code on first page fault
+   zero_bytes -= page_zero_bytes;
+   upage += PGSIZE;
+
+   // TODO; tomorrow need to verify if the code segment is being properly loaded and if its now page faulting at initialized data segment
+
   }
 }

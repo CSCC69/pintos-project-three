@@ -476,23 +476,39 @@ static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable)
 {
+  // printf("read %d zero %d \n", read_bytes, zero_bytes);
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  /* Add page to SPT */
-  struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
-  spt_entry->page = upage;
-  spt_entry->swap_slot = -1;
+  file_seek (file, ofs);
+  while (read_bytes > 0 || zero_bytes > 0) 
+    {
+      /* Calculate how to fill this page.
+         We will read PAGE_READ_BYTES bytes from FILE
+         and zero the final PAGE_ZERO_BYTES bytes. */
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-  spt_entry->executable_data = malloc(sizeof(struct executable_data));
-  spt_entry->executable_data->file = file;
-  spt_entry->executable_data->ofs = ofs;
-  spt_entry->executable_data->upage = upage;
-  spt_entry->executable_data->read_bytes = read_bytes;
-  spt_entry->executable_data->zero_bytes = zero_bytes;
-  spt_entry->executable_data->writable = writable;
-  hash_insert(&thread_current()->spt, &spt_entry->elem);
+      struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
+      spt_entry->page = upage;
+      spt_entry->swap_slot = -1;
+      spt_entry->executable_data = malloc(sizeof(struct executable_data));
+      spt_entry->executable_data->file = file;
+      spt_entry->executable_data->ofs = ofs;
+      spt_entry->executable_data->upage = upage;
+      spt_entry->executable_data->read_bytes = read_bytes;
+      spt_entry->executable_data->zero_bytes = zero_bytes;
+      spt_entry->executable_data->writable = writable;
+
+      hash_insert(&thread_current()->spt, &spt_entry->elem);
+
+      /* Advance. */
+      read_bytes -= page_read_bytes;
+      zero_bytes -= page_zero_bytes;
+      upage += PGSIZE;
+      ofs += page_read_bytes;
+    }
 
   return true;
 }
@@ -599,7 +615,7 @@ install_page (void *upage, void *kpage, bool writable)
 
   /* Add page to SPT */
   struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
-  spt_entry->page = upage;
+  spt_entry->page = pg_round_down(upage);
   spt_entry->swap_slot = -1;
   hash_insert(&t->spt, &spt_entry->elem);
 
