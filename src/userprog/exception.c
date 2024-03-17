@@ -192,9 +192,12 @@ page_fault (struct intr_frame *f)
   struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
   if (elem == NULL)
   {
-    entry_to_find.page = (void*)0x8048000;
-    elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
+    if (page_with_fault >= (void*)0x8048000 && page_with_fault < (void*)0x804c000)
+      entry_to_find.page = (void*)0x8048000;
+    else
+      entry_to_find.page = (void*)0x804c000;
   }
+  elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
   struct spt_entry *found = hash_entry(elem, struct spt_entry, elem);
   printf("Faulting page: %p\n", found->page);
 
