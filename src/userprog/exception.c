@@ -187,6 +187,7 @@ page_fault (struct intr_frame *f)
    
    if (new_frame == NULL)
      kill(f);
+   
    return;
   }
 
@@ -206,6 +207,8 @@ page_fault (struct intr_frame *f)
   if (found->swap_slot != -1)
   {
     swap_load(found);
+
+    return;
   }
 
   if (found->executable_data != NULL)
@@ -247,9 +250,10 @@ page_fault (struct intr_frame *f)
    /* Advance. */
    read_bytes -= page_read_bytes; //TODO maybe track this in struct and load each page lazily instead of entire code on first page fault
    zero_bytes -= page_zero_bytes;
-   upage += PGSIZE;
-
-   // TODO; tomorrow need to verify if the code segment is being properly loaded and if its now page faulting at initialized data segment
-
+   upage += PGSIZE;   
+   
+   return;
   }
+
+   kill(f);
 }
