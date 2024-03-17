@@ -181,25 +181,25 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
+  /*printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
-          user ? "user" : "kernel");
+          user ? "user" : "kernel");*/
 
   void* page_with_fault = pagedir_get_page(thread_current()->pagedir, fault_addr);
   struct spt_entry entry_to_find = { .page = page_with_fault };
   struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
   if (elem == NULL)
   {
-    if (page_with_fault >= (void*)0x8048000 && page_with_fault < (void*)0x804c000)
+    if (fault_addr >= (void*)0x8048000 && fault_addr < (void*)0x804c000)
       entry_to_find.page = (void*)0x8048000;
     else
       entry_to_find.page = (void*)0x804c000;
   }
   elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
   struct spt_entry *found = hash_entry(elem, struct spt_entry, elem);
-  printf("Faulting page: %p\n", found->page);
+  //printf("Faulting page: %p\n", found->page);
 
   if (found->swap_slot != -1)
   {
@@ -224,7 +224,7 @@ page_fault (struct intr_frame *f)
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
         /* Get a page of memory. */
-        uint8_t *kpage = palloc_get_page(0);
+        uint8_t *kpage = palloc_get_page(PAL_USER);
         if (kpage == NULL)
           kill(f);
 
