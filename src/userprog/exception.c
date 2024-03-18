@@ -175,13 +175,12 @@ page_fault (struct intr_frame *f)
                                  //fault_addr) == NULL)
     exit (-1);
 
-  if (fault_addr < PHYS_BASE && (fault_addr >= f->esp - STACK_ACCESS_HEURISTIC || thread_current()->esp >= f->esp - STACK_ACCESS_HEURISTIC)){
+  if (fault_addr < PHYS_BASE && (fault_addr >= f->esp - STACK_ACCESS_HEURISTIC || fault_addr >= thread_current()->esp - STACK_ACCESS_HEURISTIC)){
    void *new_frame = falloc_get_frame(PAL_USER);
    pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), new_frame, true);
    
    if (new_frame == NULL)
      kill(f);
-   
    return;
   }
 
