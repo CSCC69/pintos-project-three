@@ -5,6 +5,7 @@
 #include "threads/init.h"
 #include "threads/pte.h"
 #include "threads/palloc.h"
+#include "stdio.h"
 
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
@@ -56,32 +57,45 @@ pagedir_destroy (uint32_t *pd)
 static uint32_t *
 lookup_page (uint32_t *pd, const void *vaddr, bool create)
 {
+  // printf("lookup_page 0\n");
   uint32_t *pt, *pde;
 
   ASSERT (pd != NULL);
 
   /* Shouldn't create new kernel virtual mappings. */
   ASSERT (!create || is_user_vaddr (vaddr));
-
+  // printf("lookup_page 1\n");
   /* Check for a page table for VADDR.
      If one is missing, create one if requested. */
   pde = pd + pd_no (vaddr);
+  // printf("lookup_page 2\n");
+  ASSERT (pde != NULL);
+  // printf("pde: %p\n", pde);
+  // printf("pd: %p\n", pd);
+  // printf("pde: %d\n", *pde);
+  // printf("vaddr: %p\n", vaddr);
+  // printf("pd_no (vaddr): %d\n", pd_no (vaddr));
   if (*pde == 0) 
     {
+      // printf("lookup_page 3\n");
       if (create)
         {
+          // printf("lookup_page 4\n");
           pt = palloc_get_page (PAL_ZERO);
+          // printf("lookup_page 5\n");
           if (pt == NULL) 
             return NULL; 
-      
+          // printf("lookup_page 6\n");
           *pde = pde_create (pt);
+          // printf("lookup_page 7\n");
         }
       else
         return NULL;
     }
-
+  // printf("lookup_page 8\n");
   /* Return the page table entry. */
   pt = pde_get_pt (*pde);
+  // printf("lookup_page 9\n");
   return &pt[pt_no (vaddr)];
 }
 
@@ -148,7 +162,9 @@ pagedir_clear_page (uint32_t *pd, void *upage)
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (is_user_vaddr (upage));
 
+  // printf("pagedir_clear_page 0\n");
   pte = lookup_page (pd, upage, false);
+  // printf("pagedir_clear_page 1\n");
   if (pte != NULL && (*pte & PTE_P) != 0)
     {
       *pte &= ~PTE_P;

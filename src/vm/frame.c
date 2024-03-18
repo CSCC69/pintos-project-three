@@ -6,9 +6,13 @@
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
 #include "swap.h"
+#include "userprog/pagedir.h"
+#include "stdio.h"
+#include "threads/synch.h"
 
 struct hash frame_table;
 struct list frame_list;
+struct lock frame_lock;
 
 int mycount = 0;
 
@@ -29,18 +33,20 @@ falloc_init (void)
 {
   hash_init(&frame_table, frame_hash, frame_less, NULL);
   list_init(&frame_list);
+  lock_init(&frame_lock);
 }
 
 void *
 falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
 {
+  // lock_acquire(&frame_lock);
   struct frame *f = malloc(sizeof(struct frame));
   void *page = NULL;
 
   int c = 0;
-  while ((page = palloc_get_page(flags | PAL_ZERO)) == NULL)
+  while ((page = palloc_get_page(flags)) == NULL)
   {
-    // printf("swapping %d !!!!!!!! \n", c++);
+    printf("swapping %d !!!!!!!! \n", c++);
     swap_evict();
     // printf("finished swappings\n");
   }
@@ -53,19 +59,25 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   list_push_back(&frame_list, &f->list_elem);
   
   // printf("returning\n");
+  // lock_release(&frame_lock);
   return page;
 }
 
 void
 falloc_free_frame (struct frame *f)
 {
+  printf("falloc_free_frame 0\n");
+  if(f->spt_entry->owner->pagedir != (void *)0xcccccccc)
+    pagedir_clear_page(f->spt_entry->owner->pagedir, f->spt_entry->upage);
+  // printf("falloc_free_frame 1\n");
  if (f != NULL && f->spt_entry->kpage != NULL){
     palloc_free_page(f->spt_entry->kpage);
   } 
+  // printf("falloc_free_frame 2\n");
   if (f != NULL){
     free(f);   
   }
-  pagedir_clear_page(f->spt_entry->owner->pagedir, f->spt_entry->upage);
+  // printf("falloc_free_frame 3\n");
 }
 // {
 //   // printf("falloc_free_frame 0\n");

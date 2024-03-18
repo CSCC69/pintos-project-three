@@ -8,6 +8,8 @@
 #include "debug.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "userprog/pagedir.h"
+#include "stdio.h"
 
 struct bitmap *used_map = NULL;
 
@@ -46,7 +48,7 @@ swap_evict(void)
 //  printf("swap_evict 4\n");
   hash_delete(get_frame_table(), &f->elem);
   list_remove(&f->list_elem);
-  // printf("swap_evict 5\n");
+  printf("swap_evict 5\n");
   falloc_free_frame(f);
   // printf("swap_evict 6\n");
 }
