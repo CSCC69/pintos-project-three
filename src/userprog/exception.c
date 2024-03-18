@@ -189,14 +189,9 @@ page_fault (struct intr_frame *f)
       //STACK GROWTH
       if (fault_addr < PHYS_BASE && (fault_addr >= f->esp - STACK_ACCESS_HEURISTIC || fault_addr >= thread_current()->esp - STACK_ACCESS_HEURISTIC))
       {
-         struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
-         spt_entry->upage = pg_round_down(fault_addr);
-         spt_entry->swap_slot = -1;
-         spt_entry->executable_data = NULL;
-         spt_entry->owner = thread_current();
+         struct spt_entry *spt_entry = create_spt_entry(pg_round_down(fault_addr), NULL, -1, NULL, NULL, thread_current());
          hash_insert(&thread_current()->spt, &spt_entry->elem);
          void *new_frame = falloc_get_frame(0, spt_entry);
-         spt_entry->kpage = new_frame;
          pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), new_frame, true);
          
          if (new_frame == NULL)
@@ -250,7 +245,6 @@ page_fault (struct intr_frame *f)
          /* Get a page of memory. */
          // printf("MIDDLE 1\n");
          uint8_t *kpage = falloc_get_frame(PAL_USER, found);
-         found->kpage = kpage;
          // printf("MIDDLE 2\n");
          if (kpage == NULL)
             kill(f);

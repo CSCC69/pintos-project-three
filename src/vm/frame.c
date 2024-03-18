@@ -43,13 +43,14 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   struct frame *f = malloc(sizeof(struct frame));
   void *page = NULL;
 
-  int c = 0;
+  // int c = 0;
   while ((page = palloc_get_page(flags)) == NULL)
   {
     // printf("swapping %d !!!!!!!! \n", c++);
     swap_evict();
     // printf("finished swappings\n");
   }
+  spt_entry->kpage = page;
   // printf("found page %p\n", page);
 
   // printf("count %d\n", mycount++);
@@ -60,7 +61,7 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   
   // printf("returning\n");
   // lock_release(&frame_lock);
-  spt_entry->kpage = page;
+  
   return page;
 }
 

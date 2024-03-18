@@ -490,18 +490,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
-      spt_entry->upage = upage;
-      spt_entry->kpage = NULL;
-      spt_entry->swap_slot = -1;
-      spt_entry->owner = thread_current();
-      spt_entry->executable_data = malloc(sizeof(struct executable_data));
-      spt_entry->executable_data->file = file;
-      spt_entry->executable_data->ofs = ofs;
-      spt_entry->executable_data->upage = upage;
-      spt_entry->executable_data->read_bytes = read_bytes;
-      spt_entry->executable_data->zero_bytes = zero_bytes;
-      spt_entry->executable_data->writable = writable;
+      struct spt_entry *spt_entry = create_spt_entry(upage, NULL, -1, create_executable_data(file, ofs, upage, read_bytes, zero_bytes, writable), NULL, thread_current());
 
       hash_insert(&thread_current()->spt, &spt_entry->elem);
 
@@ -522,18 +511,15 @@ setup_stack (void **esp, const struct prog_args *prog_args)
 {
   uint8_t *kpage;
   bool success = false;
+  
+  struct spt_entry *spt_entry = create_spt_entry(((uint8_t *) PHYS_BASE) - PGSIZE, NULL, -1, NULL, NULL, thread_current());
 
-  struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
-  spt_entry->owner = thread_current();
-  spt_entry->swap_slot = -1;
-  spt_entry->executable_data = NULL;
   kpage = falloc_get_frame (PAL_USER | PAL_ZERO, spt_entry);
-  // kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  spt_entry->kpage = kpage;
-  spt_entry->upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
-  hash_insert(&thread_current()->spt, &spt_entry->elem);
-  struct frame *f = malloc(sizeof(struct frame));
 
+  // kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  hash_insert(&thread_current()->spt, &spt_entry->elem);
+
+  struct frame *f = malloc(sizeof(struct frame));
   f->start_addr = kpage;
   f->spt_entry = spt_entry;
   hash_insert(get_frame_table(), &f->elem);
