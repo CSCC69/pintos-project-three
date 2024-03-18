@@ -169,14 +169,8 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if (!user)
-    {
-      f->eip = (void (*) (void))f->eax;
-      f->eax = 0xFFFFFFFF;
-      return;
-    }
 
-  if (fault_addr >= PHYS_BASE )
+  if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000)
     //|| (void *)pagedir_get_page (thread_current ()->pagedir,
                                  //fault_addr) == NULL)
     exit (-1);
@@ -207,7 +201,6 @@ page_fault (struct intr_frame *f)
   if (found->swap_slot != -1)
   {
     swap_load(found);
-
     return;
   }
 
@@ -254,6 +247,13 @@ page_fault (struct intr_frame *f)
    
    return;
   }
+
+  
+  if (!user)
+    {
+      f->eip = (void (*) (void))f->eax;
+      f->eax = 0xFFFFFFFF;
+    }
 
    kill(f);
 }

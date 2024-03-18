@@ -106,7 +106,7 @@ syscall_handler (struct intr_frame *f)
 
   verify_stack_pointer_word (esp);
 
-  thread_current()->esp = esp;
+  thread_current ()->esp = esp;
 
   int syscall_number = *(int *)esp;
   esp += sizeof (int);
@@ -259,8 +259,7 @@ create (const char *file, unsigned initial_size)
 {
   if (file == NULL)
     exit (-1);
-  if (strcmp (file, "") == 0 || strlen (file) > 14
-      || strlen (file) == 0)
+  if (strcmp (file, "") == 0 || strlen (file) > 14 || strlen (file) == 0)
     return false;
 
   lock_acquire (&file_lock);

@@ -14,6 +14,8 @@ struct bitmap *used_map = NULL;
 void 
 swap_init(void)
 {
+  if (block_get_role(BLOCK_SWAP) == NULL) 
+    return;
   block_sector_t size = block_size(block_get_role(BLOCK_SWAP));
   used_map = bitmap_create(size);
 }
