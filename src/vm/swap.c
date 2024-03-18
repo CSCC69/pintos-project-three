@@ -65,7 +65,6 @@ frame_get_victim(void)
 {
   struct hash frame_table = *get_frame_table();
   int frame_table_size = hash_size(&frame_table);
-  /*
   int r = random_ulong() % frame_table_size;
 
   struct hash_iterator i;
@@ -74,9 +73,5 @@ frame_get_victim(void)
     hash_next(&i);
   struct frame *f = hash_entry(hash_cur(&i), struct frame, elem);
   return f;
-  */
 
-  /*struct hash_iterator i;
-  hash_first (&i, get_frame_table());
-  return hash_entry(hash_cur(&i), struct frame, elem);*/
 }

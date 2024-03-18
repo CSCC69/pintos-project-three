@@ -170,10 +170,11 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
 
-  if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000)
+  if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000) {
     //|| (void *)pagedir_get_page (thread_current ()->pagedir,
                                  //fault_addr) == NULL)
     exit (-1);
+  }
 
   if (fault_addr < PHYS_BASE && (fault_addr >= f->esp - STACK_ACCESS_HEURISTIC || fault_addr >= thread_current()->esp - STACK_ACCESS_HEURISTIC)){
    void *new_frame = falloc_get_frame(PAL_USER);
@@ -209,7 +210,6 @@ page_fault (struct intr_frame *f)
    off_t ofs = found->executable_data->ofs;
    uint8_t *upage = found->executable_data->upage;
    uint32_t read_bytes = found->executable_data->read_bytes;
-   uint32_t zero_bytes = found->executable_data->zero_bytes;
    bool writable = found->executable_data->writable;
    file_seek (file, ofs);
 
@@ -217,10 +217,9 @@ page_fault (struct intr_frame *f)
       We will read PAGE_READ_BYTES bytes from FILE
       and zero the final PAGE_ZERO_BYTES bytes. */
    size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-   size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
+    size_t page_zero_bytes = PGSIZE - page_read_bytes;
    /* Get a page of memory. */
-   uint8_t *kpage = palloc_get_page(PAL_USER);
+   uint8_t *kpage = falloc_get_frame(PAL_USER);
    if (kpage == NULL)
       kill(f);
 
@@ -230,19 +229,15 @@ page_fault (struct intr_frame *f)
       palloc_free_page (kpage);
       kill(f);
       }
+
    memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
    /* Add the page to the process's address space. */
-   if (!install_page (upage, kpage, writable)) // TODO adding to spt is a problem here since we manually add to spt in load_segment
+   if (!install_page (upage, kpage, writable)) 
       {
       palloc_free_page (kpage);
       kill(f);
       }
-
-   /* Advance. */
-   read_bytes -= page_read_bytes; //TODO maybe track this in struct and load each page lazily instead of entire code on first page fault
-   zero_bytes -= page_zero_bytes;
-   upage += PGSIZE;   
    
    return;
   }

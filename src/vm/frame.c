@@ -43,8 +43,11 @@ falloc_free_frame (void *frame)
 {
   struct frame *f_to_find = { 0 };
   f_to_find->start_addr = frame;
-  
+
   struct frame *f = hash_entry(hash_find(&frame_table, &f_to_find->elem), struct frame, elem);
+
+  hash_delete(get_frame_table(), &f->elem);
+
   if (f != NULL && f->start_addr != NULL)
     palloc_free_page(f->start_addr);
 }
