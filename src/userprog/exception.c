@@ -135,6 +135,7 @@ kill (struct intr_frame *f)
 static void
 page_fault (struct intr_frame *f)
 {
+   printf("page_fault\n");
   bool user;         /* True: access by user, false: access by kernel. */
 
   /* Turn interrupts back on (they were only off so that we could
@@ -195,6 +196,7 @@ page_fault (struct intr_frame *f)
    
    if (new_frame == NULL)
      kill(f);
+   printf("end\n");
    return;
   }
 
@@ -214,6 +216,7 @@ page_fault (struct intr_frame *f)
   if (found->swap_slot != -1)
   {
     swap_load(found);
+   printf("end\n");
     return;
   }
 
@@ -234,7 +237,9 @@ page_fault (struct intr_frame *f)
    size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
    /* Get a page of memory. */
+   printf("MIDDLE 1\n");
    uint8_t *kpage = falloc_get_frame(PAL_USER, found);
+   printf("MIDDLE 2\n");
    if (kpage == NULL)
       kill(f);
 
@@ -258,6 +263,7 @@ page_fault (struct intr_frame *f)
    zero_bytes -= page_zero_bytes;
    upage += PGSIZE;   
    
+   printf("end\n");
    return;
   }
 
@@ -267,6 +273,6 @@ page_fault (struct intr_frame *f)
       f->eip = (void (*) (void))f->eax;
       f->eax = 0xFFFFFFFF;
     }
-
+   printf("end\n");
    kill(f);
 }

@@ -38,7 +38,7 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   void *page = NULL;
 
   int c = 0;
-  while ((page = palloc_get_page(flags | PAL_USER)) == NULL)
+  while ((page = palloc_get_page(flags | PAL_ZERO)) == NULL)
   {
     // printf("swapping %d !!!!!!!! \n", c++);
     swap_evict();

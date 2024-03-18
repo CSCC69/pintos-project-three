@@ -535,7 +535,7 @@ setup_stack (void **esp, const struct prog_args *prog_args)
   spt_entry->upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
   struct frame *f = malloc(sizeof(struct frame));
 
-  f->start_addr = ((uint8_t *) PHYS_BASE) - PGSIZE;
+  f->start_addr = kpage;
   f->spt_entry = spt_entry;
   hash_insert(get_frame_table(), &f->elem);
   list_push_back(get_frame_list(), &f->list_elem);
