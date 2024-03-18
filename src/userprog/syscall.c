@@ -19,6 +19,8 @@
 #include <userprog/pagedir.h>
 
 void syscall_handler (struct intr_frame *);
+mapid_t mmap (int fd, void *addr);
+void munmap (mapid_t mapping);
 void halt (void);
 void exit (int status);
 pid_t exec (const char *cmd_line);
@@ -194,9 +196,31 @@ syscall_handler (struct intr_frame *f)
       unsigned int length = *(unsigned int *)syscall_args[2];
       f->eax = write (fd, write_buffer, length);
       break;
+    case SYS_MMAP:
+      stack_pop (&syscall_args[0], 2, esp);
+      fd = *(int *)syscall_args[0];
+      verify_user_pointer_word (syscall_args[1]);
+      void *addr = *(void **)syscall_args[1];
+      f->eax = mmap(fd, addr);
+      break;
+    case SYS_MUNMAP:
+      stack_pop (&syscall_args[0], 1, esp);
+      mapid_t mapping = *(mapid_t *)syscall_args[0];
+      munmap(mapping);
+      break;
     default:
       break;
     }
+}
+
+mapid_t mmap (int fd, void *addr)
+{
+  return 42;
+}
+
+void munmap (mapid_t mapping)
+{
+
 }
 
 /* Kernel implementation of the halt syscall */

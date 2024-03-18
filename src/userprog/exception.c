@@ -250,6 +250,7 @@ page_fault (struct intr_frame *f)
          /* Get a page of memory. */
          // printf("MIDDLE 1\n");
          uint8_t *kpage = falloc_get_frame(PAL_USER, found);
+         found->kpage = kpage;
          // printf("MIDDLE 2\n");
          if (kpage == NULL)
             kill(f);
@@ -269,7 +270,6 @@ page_fault (struct intr_frame *f)
             palloc_free_page (kpage);
             kill(f);
             }
-         found->kpage = kpage;
 
          /* Advance. */
          read_bytes -= page_read_bytes; //TODO maybe track this in struct and load each page lazily instead of entire code on first page fault
@@ -290,5 +290,6 @@ page_fault (struct intr_frame *f)
       f->eax = 0xFFFFFFFF;
     }
    // printf("end\n");
-   kill(f);
+   exit(-1);
+   // kill(f);
 }
