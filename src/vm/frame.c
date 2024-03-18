@@ -10,6 +10,8 @@
 struct hash frame_table;
 struct list frame_list;
 
+int mycount = 0;
+
 struct hash*
 get_frame_table(void)
 {
@@ -35,11 +37,15 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   struct frame *f = malloc(sizeof(struct frame));
   void *page = NULL;
 
+  int c = 0;
   while ((page = palloc_get_page(flags | PAL_USER)) == NULL)
   {
+    printf("swapped %d !!!!!!!! \n", c++);
     swap_evict();
+    printf("finished swappings\n");
   }
 
+  // printf("count %d\n", mycount++);
   f->start_addr = page;
   f->spt_entry = spt_entry;
   hash_insert(&frame_table, &f->elem);
@@ -49,16 +55,31 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
 }
 
 void
-falloc_free_frame (void *page)
+falloc_free_frame (struct frame *f)
 {
-  struct frame *f_to_find = { 0 };
-  f_to_find->start_addr = page;
-  
-  struct frame *f = hash_entry(hash_find(&frame_table, &f_to_find->elem), struct frame, elem);
-  if (f != NULL && f->start_addr != NULL){
-    palloc_free_page(f->start_addr);
+ if (f != NULL && f->spt_entry->kpage != NULL){
+    palloc_free_page(f->spt_entry->kpage);
+  }
+  if (f != NULL){
+    free(f);   
   }
 }
+// {
+//   // printf("falloc_free_frame 0\n");
+//   struct frame f_to_find = { .start_addr = page};
+//   // printf("falloc_free_frame 0.5\n");
+//   // f_to_find->start_addr = page;
+//   // printf("falloc_free_frame 1\n");
+//   struct frame *f = hash_entry(hash_find(&frame_table, &f_to_find.elem), struct frame, elem);
+//   // printf("falloc_free_frame 2\n");
+//  if (f != NULL && f->start_addr != NULL){
+//     // printf("falloc_free_frame 3\n");
+//     palloc_free_page(f->start_addr);
+//   } 
+//   // printf("falloc_free_frame 4\n");
+//   free(f);
+//   // printf("falloc_free_frame 5\n");
+// }
 
 unsigned frame_hash (const struct hash_elem *frame_elem, void *aux UNUSED)
 {

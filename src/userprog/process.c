@@ -609,7 +609,7 @@ setup_stack (void **esp, const struct prog_args *prog_args)
       else
         {
         failure:
-          falloc_free_frame (kpage);
+          falloc_free_frame (f);
           return false;
         }
     }

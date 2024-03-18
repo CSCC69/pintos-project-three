@@ -26,29 +26,26 @@ swap_evict(void)
   struct frame *f = frame_get_victim();
   struct block *swap_disk = block_get_role(BLOCK_SWAP);
 
+  // printf("swap_evict\n");
+
   size_t idx = bitmap_scan_and_flip(used_map, 0, 1, false);
   if (idx == BITMAP_ERROR)
     PANIC("Swap is full");
-
+  // printf("swap_evict 1\n");
   void* page_start = f->start_addr;
   for (int i = 0; i < PGSIZE / BLOCK_SECTOR_SIZE; i++)
   {
+    // printf("swap_evict 2 %d\n", i);
     block_write(swap_disk, idx + i, page_start);
     page_start += BLOCK_SECTOR_SIZE;
   }
-
-
-  // struct spt_entry entry_to_find = { .page = f->start_addr };
-  // struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
-  // struct spt_entry *found = hash_entry(elem, struct spt_entry, elem);
-  // found->swap_slot = idx;
-  
+//  printf("swap_evict 3\n");
   f->spt_entry->swap_slot = idx;
-
-  // printf("Evicting frame %p to swap slot %d\n", f->start_addr, idx);
-  palloc_free_page(f->spt_entry->kpage);
+//  printf("swap_evict 4\n");
   hash_delete(get_frame_table(), &f->elem);
-  free(f);
+  // printf("swap_evict 5\n");
+  falloc_free_frame(f);
+  // printf("swap_evict 6\n");
 }
 
 void

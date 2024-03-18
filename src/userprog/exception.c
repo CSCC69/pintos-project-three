@@ -157,6 +157,8 @@ page_fault (struct intr_frame *f)
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
+//   printf("fault_addr: %p\n", fault_addr);
+
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
   intr_enable ();
@@ -250,6 +252,7 @@ page_fault (struct intr_frame *f)
    zero_bytes -= page_zero_bytes;
    upage += PGSIZE;   
    
+   printf("returning\n");
    return;
   }
 
