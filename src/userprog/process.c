@@ -527,12 +527,11 @@ setup_stack (void **esp, const struct prog_args *prog_args)
   spt_entry->owner = thread_current();
   spt_entry->swap_slot = -1;
   spt_entry->executable_data = NULL;
-  hash_insert(&thread_current()->spt, &spt_entry->elem);
-
-  // kpage = falloc_get_frame (PAL_USER | PAL_ZERO, spt_entry);
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = falloc_get_frame (PAL_USER | PAL_ZERO, spt_entry);
+  // kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   spt_entry->kpage = kpage;
   spt_entry->upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+  hash_insert(&thread_current()->spt, &spt_entry->elem);
   struct frame *f = malloc(sizeof(struct frame));
 
   f->start_addr = kpage;

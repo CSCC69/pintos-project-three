@@ -48,7 +48,7 @@ swap_evict(void)
 //  printf("swap_evict 4\n");
   hash_delete(get_frame_table(), &f->elem);
   list_remove(&f->list_elem);
-  printf("swap_evict 5\n");
+  // printf("swap_evict 5\n");
   falloc_free_frame(f);
   // printf("swap_evict 6\n");
 }
@@ -57,6 +57,7 @@ void
 swap_load(struct spt_entry *spt_entry)
 {
   void *frame = falloc_get_frame(PAL_USER, spt_entry);
+  spt_entry->kpage = frame;
     for (int i = 0; i < PGSIZE / BLOCK_SECTOR_SIZE; i++)
     {
       block_read(block_get_role(BLOCK_SWAP), spt_entry->swap_slot + i, frame);

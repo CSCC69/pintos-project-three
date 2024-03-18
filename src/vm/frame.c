@@ -46,7 +46,7 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   int c = 0;
   while ((page = palloc_get_page(flags)) == NULL)
   {
-    printf("swapping %d !!!!!!!! \n", c++);
+    // printf("swapping %d !!!!!!!! \n", c++);
     swap_evict();
     // printf("finished swappings\n");
   }
@@ -66,9 +66,12 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
 void
 falloc_free_frame (struct frame *f)
 {
-  printf("falloc_free_frame 0\n");
-  if(f->spt_entry->owner->pagedir != (void *)0xcccccccc)
+//   printf("falloc_free_frame 0\n");
+  if(f->spt_entry->owner->pagedir != (void *)0xcccccccc) {
+    ASSERT(f->spt_entry->owner != NULL);
     pagedir_clear_page(f->spt_entry->owner->pagedir, f->spt_entry->upage);
+  }
+    
   // printf("falloc_free_frame 1\n");
  if (f != NULL && f->spt_entry->kpage != NULL){
     palloc_free_page(f->spt_entry->kpage);

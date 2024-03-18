@@ -179,7 +179,7 @@ page_fault (struct intr_frame *f)
   if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000)
   {
    if(user) {
-      PANIC("fault_addr: %p\n", fault_addr);
+      PANIC("fault_addr: %p f->eip %p \n", fault_addr, f->eip);
       exit (-1);
    }
   }
@@ -225,6 +225,7 @@ page_fault (struct intr_frame *f)
       if (found->swap_slot != -1)
       {
          swap_load(found);
+         found->upage = pg_round_down(fault_addr);
          // printf("end\n");
          return;
       }
@@ -268,6 +269,7 @@ page_fault (struct intr_frame *f)
             palloc_free_page (kpage);
             kill(f);
             }
+         found->kpage = kpage;
 
          /* Advance. */
          read_bytes -= page_read_bytes; //TODO maybe track this in struct and load each page lazily instead of entire code on first page fault
