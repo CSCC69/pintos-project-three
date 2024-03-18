@@ -527,7 +527,16 @@ setup_stack (void **esp, const struct prog_args *prog_args)
   spt_entry->executable_data = NULL;
   hash_insert(&thread_current()->spt, &spt_entry->elem);
 
-  kpage = falloc_get_frame (PAL_USER | PAL_ZERO, spt_entry);
+  // kpage = falloc_get_frame (PAL_USER | PAL_ZERO, spt_entry);
+  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+
+  struct frame *f = malloc(sizeof(struct frame));
+
+  f->start_addr = ((uint8_t *) PHYS_BASE) - PGSIZE;
+  f->spt_entry = spt_entry;
+  hash_insert(&get_frame_table, &f->elem);
+  list_push_back(&get_frame_list, &f->list_elem);
+
   if (kpage != NULL)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
