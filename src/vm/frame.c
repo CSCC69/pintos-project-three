@@ -61,6 +61,8 @@ falloc_free_frame (struct frame *f)
 {
  if (f != NULL && f->spt_entry->kpage != NULL){
     palloc_free_page(f->spt_entry->kpage);
+  } else{
+    printf("falloc_free_frame: f->spt_entry->kpage is NULL\n");
   }
   if (f != NULL){
     free(f);   

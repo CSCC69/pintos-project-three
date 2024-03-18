@@ -172,6 +172,7 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+   printf("user: %d\n", user);
 
   if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000)
     //|| (void *)pagedir_get_page (thread_current ()->pagedir,
