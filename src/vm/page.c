@@ -1,7 +1,7 @@
 #include "page.h"
 #include "threads/malloc.h"
 
-struct spt_entry *create_spt_entry(void *upage, void *kpage, int swap_slot, struct executable_data *executable_data, struct mmap_data *mmap_data, struct hash_elem elem, struct thread *owner){
+struct spt_entry *create_spt_entry(void *upage, void *kpage, int swap_slot, struct executable_data *executable_data, struct mmap_data *mmap_data, struct thread *owner){
     struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
     if (spt_entry == NULL) {
         return NULL;
@@ -13,7 +13,6 @@ struct spt_entry *create_spt_entry(void *upage, void *kpage, int swap_slot, stru
     spt_entry->swap_slot = swap_slot;
     spt_entry->executable_data = executable_data;
     spt_entry->mmap_data = mmap_data;
-    spt_entry->elem = elem;
     spt_entry->owner = owner;
 
     return spt_entry;

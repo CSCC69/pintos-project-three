@@ -60,6 +60,7 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   
   // printf("returning\n");
   // lock_release(&frame_lock);
+  spt_entry->kpage = page;
   return page;
 }
 
