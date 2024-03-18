@@ -157,7 +157,8 @@ page_fault (struct intr_frame *f)
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
-//   printf("fault_addr: %p\n", fault_addr);
+  printf("fault_addr: %p\n", fault_addr);
+// printf("f %p\n", f);
 
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
@@ -183,7 +184,7 @@ page_fault (struct intr_frame *f)
    spt_entry->swap_slot = -1;
    spt_entry->executable_data = NULL;
    hash_insert(&thread_current()->spt, &spt_entry->elem);
-   void *new_frame = falloc_get_frame(PAL_USER, spt_entry);
+   void *new_frame = falloc_get_frame(0, spt_entry);
    spt_entry->kpage = new_frame;
    pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), new_frame, true);
    
@@ -252,7 +253,6 @@ page_fault (struct intr_frame *f)
    zero_bytes -= page_zero_bytes;
    upage += PGSIZE;   
    
-   printf("returning\n");
    return;
   }
 

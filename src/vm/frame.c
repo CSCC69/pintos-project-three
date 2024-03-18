@@ -40,10 +40,11 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   int c = 0;
   while ((page = palloc_get_page(flags | PAL_USER)) == NULL)
   {
-    printf("swapped %d !!!!!!!! \n", c++);
+    // printf("swapping %d !!!!!!!! \n", c++);
     swap_evict();
-    printf("finished swappings\n");
+    // printf("finished swappings\n");
   }
+  printf("found page %p\n", page);
 
   // printf("count %d\n", mycount++);
   f->start_addr = page;
@@ -51,6 +52,7 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   hash_insert(&frame_table, &f->elem);
   list_push_back(&frame_list, &f->list_elem);
   
+  printf("returning\n");
   return page;
 }
 
