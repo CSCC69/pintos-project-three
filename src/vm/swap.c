@@ -45,7 +45,8 @@ swap_evict(void)
   
   f->spt_entry->swap_slot = idx;
 
-  palloc_free_page(f->start_addr);
+  // printf("Evicting frame %p to swap slot %d\n", f->start_addr, idx);
+  palloc_free_page(f->spt_entry->kpage);
   hash_delete(get_frame_table(), &f->elem);
   free(f);
 }
@@ -59,7 +60,7 @@ swap_load(struct spt_entry *spt_entry)
       block_read(block_get_role(BLOCK_SWAP), spt_entry->swap_slot + i, frame);
       frame += BLOCK_SECTOR_SIZE;
     }
-    pagedir_set_page(thread_current()->pagedir, spt_entry->page, frame, true);
+    pagedir_set_page(thread_current()->pagedir, spt_entry->upage, frame, true);
 }
 
 struct frame*
@@ -78,7 +79,7 @@ frame_get_victim(void)
   // return f;
 
   struct list frame = *get_frame_list();
-  return list_entry(list_pop_front(&frame), struct frame, list_elem);
+  return list_entry(list_begin(&frame), struct frame, list_elem);
   
 
   // struct hash_iterator i;

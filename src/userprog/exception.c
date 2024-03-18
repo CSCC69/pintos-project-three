@@ -177,11 +177,12 @@ page_fault (struct intr_frame *f)
 
   if (fault_addr < PHYS_BASE && (fault_addr >= f->esp - STACK_ACCESS_HEURISTIC || fault_addr >= thread_current()->esp - STACK_ACCESS_HEURISTIC)){
    struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
-   spt_entry->page = pg_round_down(fault_addr);
+   spt_entry->upage = pg_round_down(fault_addr);
    spt_entry->swap_slot = -1;
    spt_entry->executable_data = NULL;
    hash_insert(&thread_current()->spt, &spt_entry->elem);
    void *new_frame = falloc_get_frame(PAL_USER, spt_entry);
+   spt_entry->kpage = new_frame;
    pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), new_frame, true);
    
    if (new_frame == NULL)
@@ -190,11 +191,11 @@ page_fault (struct intr_frame *f)
   }
 
   void* page_with_fault = pagedir_get_page(thread_current()->pagedir, pg_round_down(fault_addr));
-  struct spt_entry entry_to_find = { .page = page_with_fault };
+  struct spt_entry entry_to_find = { .upage = page_with_fault };
   struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
   if (elem == NULL)
   {
-    entry_to_find.page = pg_round_down(fault_addr);
+    entry_to_find.upage = pg_round_down(fault_addr);
     elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
   }
   struct spt_entry *found = NULL;

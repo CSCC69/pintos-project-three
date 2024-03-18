@@ -491,7 +491,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
-      spt_entry->page = upage;
+      spt_entry->upage = upage;
+      spt_entry->kpage = NULL;
       spt_entry->swap_slot = -1;
       spt_entry->executable_data = malloc(sizeof(struct executable_data));
       spt_entry->executable_data->file = file;
@@ -522,20 +523,21 @@ setup_stack (void **esp, const struct prog_args *prog_args)
   bool success = false;
 
   struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
-  spt_entry->page = ((uint8_t *) PHYS_BASE) - PGSIZE;
+  
   spt_entry->swap_slot = -1;
   spt_entry->executable_data = NULL;
   hash_insert(&thread_current()->spt, &spt_entry->elem);
 
   // kpage = falloc_get_frame (PAL_USER | PAL_ZERO, spt_entry);
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-
+  spt_entry->kpage = kpage;
+  spt_entry->upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
   struct frame *f = malloc(sizeof(struct frame));
 
   f->start_addr = ((uint8_t *) PHYS_BASE) - PGSIZE;
   f->spt_entry = spt_entry;
-  hash_insert(&get_frame_table, &f->elem);
-  list_push_back(&get_frame_list, &f->list_elem);
+  hash_insert(get_frame_table(), &f->elem);
+  list_push_back(get_frame_list(), &f->list_elem);
 
   if (kpage != NULL)
     {

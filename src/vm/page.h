@@ -3,7 +3,8 @@
 
 struct spt_entry
   {
-    void *page;
+    void *upage;
+    void *kpage;
     int swap_slot;
     struct executable_data *executable_data;
     struct hash_elem elem;
