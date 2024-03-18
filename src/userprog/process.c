@@ -494,6 +494,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       spt_entry->upage = upage;
       spt_entry->kpage = NULL;
       spt_entry->swap_slot = -1;
+      spt_entry->owner = thread_current();
       spt_entry->executable_data = malloc(sizeof(struct executable_data));
       spt_entry->executable_data->file = file;
       spt_entry->executable_data->ofs = ofs;
@@ -523,7 +524,7 @@ setup_stack (void **esp, const struct prog_args *prog_args)
   bool success = false;
 
   struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
-  
+  spt_entry->owner = thread_current();
   spt_entry->swap_slot = -1;
   spt_entry->executable_data = NULL;
   hash_insert(&thread_current()->spt, &spt_entry->elem);

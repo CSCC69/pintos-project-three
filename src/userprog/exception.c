@@ -157,7 +157,7 @@ page_fault (struct intr_frame *f)
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
-  printf("fault_addr: %p\n", fault_addr);
+//   printf("fault_addr: %p\n", fault_addr);
 // printf("f %p\n", f);
 
   /* Turn interrupts back on (they were only off so that we could
@@ -172,18 +172,22 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-   printf("user: %d\n", user);
+   // printf("user: %d\n", user);
 
-  if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000)
+  if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000){\
+   // PANIC("fault_addr: %p\n", fault_addr);
+   exit (-1);
+  }
     //|| (void *)pagedir_get_page (thread_current ()->pagedir,
                                  //fault_addr) == NULL)
-    exit (-1);
+    
 
   if (fault_addr < PHYS_BASE && (fault_addr >= f->esp - STACK_ACCESS_HEURISTIC || fault_addr >= thread_current()->esp - STACK_ACCESS_HEURISTIC)){
    struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
    spt_entry->upage = pg_round_down(fault_addr);
    spt_entry->swap_slot = -1;
    spt_entry->executable_data = NULL;
+   spt_entry->owner = thread_current();
    hash_insert(&thread_current()->spt, &spt_entry->elem);
    void *new_frame = falloc_get_frame(0, spt_entry);
    spt_entry->kpage = new_frame;

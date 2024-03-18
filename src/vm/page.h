@@ -1,5 +1,6 @@
 #include "filesys/off_t.h"
 #include "kernel/hash.h"
+#include "threads/thread.h"
 
 struct spt_entry
   {
@@ -8,6 +9,7 @@ struct spt_entry
     int swap_slot;
     struct executable_data *executable_data;
     struct hash_elem elem;
+    struct thread *owner;
   };
 
 struct executable_data

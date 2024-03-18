@@ -44,7 +44,7 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
     swap_evict();
     // printf("finished swappings\n");
   }
-  printf("found page %p\n", page);
+  // printf("found page %p\n", page);
 
   // printf("count %d\n", mycount++);
   f->start_addr = page;
@@ -52,7 +52,7 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   hash_insert(&frame_table, &f->elem);
   list_push_back(&frame_list, &f->list_elem);
   
-  printf("returning\n");
+  // printf("returning\n");
   return page;
 }
 
@@ -61,12 +61,11 @@ falloc_free_frame (struct frame *f)
 {
  if (f != NULL && f->spt_entry->kpage != NULL){
     palloc_free_page(f->spt_entry->kpage);
-  } else{
-    printf("falloc_free_frame: f->spt_entry->kpage is NULL\n");
-  }
+  } 
   if (f != NULL){
     free(f);   
   }
+  pagedir_clear_page(f->spt_entry->owner->pagedir, f->spt_entry->upage);
 }
 // {
 //   // printf("falloc_free_frame 0\n");
