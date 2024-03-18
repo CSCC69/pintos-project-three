@@ -521,7 +521,13 @@ setup_stack (void **esp, const struct prog_args *prog_args)
   uint8_t *kpage;
   bool success = false;
 
-  kpage = falloc_get_frame (PAL_USER | PAL_ZERO);
+  struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
+  spt_entry->page = ((uint8_t *) PHYS_BASE) - PGSIZE;
+  spt_entry->swap_slot = -1;
+  spt_entry->executable_data = NULL;
+  hash_insert(&thread_current()->spt, &spt_entry->elem);
+
+  kpage = falloc_get_frame (PAL_USER | PAL_ZERO, spt_entry);
   if (kpage != NULL)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
@@ -612,12 +618,6 @@ bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
-
-  /* Add page to SPT */
-  struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
-  spt_entry->page = pg_round_down(upage);
-  spt_entry->swap_slot = -1;
-  hash_insert(&t->spt, &spt_entry->elem);
 
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */

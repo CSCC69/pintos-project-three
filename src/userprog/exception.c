@@ -176,7 +176,12 @@ page_fault (struct intr_frame *f)
     exit (-1);
 
   if (fault_addr < PHYS_BASE && (fault_addr >= f->esp - STACK_ACCESS_HEURISTIC || fault_addr >= thread_current()->esp - STACK_ACCESS_HEURISTIC)){
-   void *new_frame = falloc_get_frame(PAL_USER);
+   struct spt_entry *spt_entry = malloc(sizeof(struct spt_entry));
+   spt_entry->page = pg_round_down(fault_addr);
+   spt_entry->swap_slot = -1;
+   spt_entry->executable_data = NULL;
+   hash_insert(&thread_current()->spt, &spt_entry->elem);
+   void *new_frame = falloc_get_frame(PAL_USER, spt_entry);
    pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), new_frame, true);
    
    if (new_frame == NULL)
@@ -220,7 +225,7 @@ page_fault (struct intr_frame *f)
    size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
    /* Get a page of memory. */
-   uint8_t *kpage = palloc_get_page(PAL_USER);
+   uint8_t *kpage = falloc_get_frame(PAL_USER, found);
    if (kpage == NULL)
       kill(f);
 

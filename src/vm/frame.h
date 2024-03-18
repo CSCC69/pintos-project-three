@@ -5,13 +5,16 @@
 struct frame
   {
     struct hash_elem elem;
+    struct list_elem list_elem;
     void *start_addr;
+    struct spt_entry *spt_entry;
   };
 
 struct hash *get_frame_table(void);
+struct list *get_frame_list(void);
 
 void falloc_init (void);
-void *falloc_get_frame (enum palloc_flags);
+void *falloc_get_frame (enum palloc_flags, struct spt_entry *spt_entry);
 void falloc_free_frame (void *);
 
 unsigned frame_hash (const struct hash_elem *frame_elem, void *aux);

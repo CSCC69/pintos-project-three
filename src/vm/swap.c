@@ -38,10 +38,12 @@ swap_evict(void)
   }
 
 
-  struct spt_entry entry_to_find = { .page = f->start_addr };
-  struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
-  struct spt_entry *found = hash_entry(elem, struct spt_entry, elem);
-  found->swap_slot = idx;
+  // struct spt_entry entry_to_find = { .page = f->start_addr };
+  // struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
+  // struct spt_entry *found = hash_entry(elem, struct spt_entry, elem);
+  // found->swap_slot = idx;
+  
+  f->spt_entry->swap_slot = idx;
 
   palloc_free_page(f->start_addr);
   hash_delete(get_frame_table(), &f->elem);
@@ -51,7 +53,7 @@ swap_evict(void)
 void
 swap_load(struct spt_entry *spt_entry)
 {
-  void *frame = falloc_get_frame(PAL_USER);
+  void *frame = falloc_get_frame(PAL_USER, spt_entry);
     for (int i = 0; i < PGSIZE / BLOCK_SECTOR_SIZE; i++)
     {
       block_read(block_get_role(BLOCK_SWAP), spt_entry->swap_slot + i, frame);
@@ -63,20 +65,23 @@ swap_load(struct spt_entry *spt_entry)
 struct frame*
 frame_get_victim(void)
 {
-  struct hash frame_table = *get_frame_table();
-  int frame_table_size = hash_size(&frame_table);
-  /*
-  int r = random_ulong() % frame_table_size;
+  // struct hash frame_table = *get_frame_table();
+  // int frame_table_size = hash_size(&frame_table);
+  
+  // int r = random_ulong() % frame_table_size;
 
-  struct hash_iterator i;
-  hash_first (&i, get_frame_table());
-  for (int j = 0; j < r - 1; j++)
-    hash_next(&i);
-  struct frame *f = hash_entry(hash_cur(&i), struct frame, elem);
-  return f;
-  */
+  // struct hash_iterator i;
+  // hash_first (&i, get_frame_table());
+  // for (int j = 0; j < r - 1; j++)
+  //   hash_next(&i);
+  // struct frame *f = hash_entry(hash_cur(&i), struct frame, elem);
+  // return f;
 
-  /*struct hash_iterator i;
-  hash_first (&i, get_frame_table());
-  return hash_entry(hash_cur(&i), struct frame, elem);*/
+  struct list frame = *get_frame_list();
+  return list_entry(list_pop_front(&frame), struct frame, list_elem);
+  
+
+  // struct hash_iterator i;
+  // hash_first (&i, get_frame_table());
+  // return hash_entry(hash_cur(&i), struct frame, elem);
 }
