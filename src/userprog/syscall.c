@@ -3,10 +3,12 @@
 #include "devices/shutdown.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
+#include "hash.h"
 #include "list.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "threads/interrupt.h"
+#include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
@@ -14,11 +16,14 @@
 #include "user/syscall.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
+#include "vm/page.h"
 #include <string.h>
 #include <syscall-nr.h>
 #include <userprog/pagedir.h>
 
 void syscall_handler (struct intr_frame *);
+mapid_t mmap (int fd, void *addr);
+void munmap (mapid_t mapping);
 void halt (void);
 void exit (int status);
 pid_t exec (const char *cmd_line);
@@ -106,6 +111,8 @@ syscall_handler (struct intr_frame *f)
 
   verify_stack_pointer_word (esp);
 
+  thread_current ()->esp = esp;
+
   int syscall_number = *(int *)esp;
   esp += sizeof (int);
 
@@ -192,8 +199,108 @@ syscall_handler (struct intr_frame *f)
       unsigned int length = *(unsigned int *)syscall_args[2];
       f->eax = write (fd, write_buffer, length);
       break;
+    case SYS_MMAP:
+      stack_pop (&syscall_args[0], 2, esp);
+      fd = *(int *)syscall_args[0];
+      verify_user_pointer_word (syscall_args[1]);
+      void *addr = *(void **)syscall_args[1];
+      f->eax = mmap (fd, addr);
+      break;
+    case SYS_MUNMAP:
+      stack_pop (&syscall_args[0], 1, esp);
+      mapid_t mapping = *(mapid_t *)syscall_args[0];
+      munmap (mapping);
+      break;
     default:
       break;
+    }
+}
+
+mapid_t
+mmap (int fd, void *addr)
+{
+
+  if (fd == 0 || fd == 1)
+    return -1;
+
+  struct file *file = get_open_file (thread_current (), fd);
+
+  if (!file)
+    return -1;
+
+  int size = filesize (fd);
+  if (size == 0)
+    return -1;
+
+  if (addr == NULL || (uint32_t)addr % PGSIZE != 0)
+    return -1;
+
+  int id = (uint32_t)addr;
+
+  uint32_t read_bytes = size;
+  off_t ofs = 0;
+
+  int adder = size % PGSIZE == 0 ? 0 : 1;
+  int page_count = size / PGSIZE + adder;
+
+  for (int i = 0; i < page_count; i++)
+    {
+      void *pg_address = addr + (i * PGSIZE);
+      if (pagedir_get_page (thread_current ()->pagedir, pg_address) != NULL)
+        return -1;
+    }
+
+  for (int i = 0; i < page_count; i++)
+    {
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_zero_bytes = PGSIZE - page_read_bytes;
+      void *pg_address = addr + (i * PGSIZE);
+      struct mmap_data *data = create_mmap_data (
+          file, (uint32_t)pg_address, pg_address, page_read_bytes,
+          page_zero_bytes, ofs, page_count - i);
+      struct spt_entry *entry = create_spt_entry (pg_address, NULL, -1, NULL,
+                                                  data, thread_current ());
+      hash_insert (&thread_current ()->spt, &entry->elem);
+      hash_insert (get_mmap_table (), &data->elem);
+
+      read_bytes -= page_read_bytes;
+      ofs += PGSIZE;
+    }
+
+  return id;
+}
+
+void
+munmap (mapid_t mapping)
+{
+
+  void *addr = (void *)mapping;
+
+  struct mmap_data data_to_find = { .addr = addr };
+
+  struct hash_elem *elem = hash_find (get_mmap_table (), &data_to_find.elem);
+  if (elem == NULL)
+    return;
+
+  struct mmap_data *data = hash_entry (elem, struct mmap_data, elem);
+
+  for (int i = 0; data->remaining_page_count; i++)
+    {
+      void *pg_address = addr + (i * PGSIZE);
+      struct mmap_data data_to_find = { .addr = pg_address };
+      struct mmap_data *data
+          = hash_entry (hash_find (get_mmap_table (), &data_to_find.elem),
+                        struct mmap_data, elem);
+      hash_delete (get_mmap_table (), &data->elem);
+      free (data);
+      struct spt_entry entry_to_find = { .upage = pg_address };
+      struct spt_entry *entry = hash_entry (
+          hash_find (&thread_current ()->spt, &entry_to_find.elem),
+          struct spt_entry, elem);
+      hash_delete (&thread_current ()->spt, &entry->elem);
+      free (entry);
+      palloc_free_page (
+          pagedir_get_page (thread_current ()->pagedir, pg_address));
     }
 }
 
@@ -257,8 +364,7 @@ create (const char *file, unsigned initial_size)
 {
   if (file == NULL)
     exit (-1);
-  if (strcmp (file, "") == 0 || strlen (file) > 14
-      || strlen (file) == 0)
+  if (strcmp (file, "") == 0 || strlen (file) > 14 || strlen (file) == 0)
     return false;
 
   lock_acquire (&file_lock);

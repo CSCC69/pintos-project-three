@@ -1,11 +1,23 @@
 #include "userprog/exception.h"
+#include "devices/block.h"
+#include "stdio.h"
 #include "threads/interrupt.h"
+#include "threads/malloc.h"
+#include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/gdt.h"
+#include "userprog/pagedir.h"
+#include "userprog/process.h"
+#include "vm/frame.h"
+#include "vm/swap.h"
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#define STACK_LIMIT 8 * 1024 * 1024
+#define STACK_ACCESS_HEURISTIC 32
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -158,26 +170,112 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  if (fault_addr >= PHYS_BASE || fault_addr == 0
+      || fault_addr < (void *)0x08048000)
+    {
+      if (user)
+        exit (-1);
+    }
+
+  if (fault_addr != 0 && fault_addr >= (void *)0x08048000
+      && is_user_vaddr (fault_addr))
+    {
+      // STACK GROWTH
+      if (fault_addr < PHYS_BASE && (fault_addr >= f->esp - STACK_ACCESS_HEURISTIC
+          || fault_addr >= thread_current ()->esp - STACK_ACCESS_HEURISTIC))
+        {
+          struct spt_entry *spt_entry
+              = create_spt_entry (pg_round_down (fault_addr), NULL, -1, NULL,
+                                  NULL, thread_current ());
+          hash_insert (&thread_current ()->spt, &spt_entry->elem);
+          void *new_frame = falloc_get_frame (0, spt_entry);
+          pagedir_set_page (thread_current ()->pagedir,
+                            pg_round_down (fault_addr), new_frame, true);
+
+          if (new_frame == NULL)
+            kill (f);
+          return;
+        }
+
+      void *page_with_fault = pagedir_get_page (thread_current ()->pagedir,
+                                                pg_round_down (fault_addr));
+      struct spt_entry entry_to_find = { .upage = page_with_fault };
+      struct hash_elem *elem = hash_find (&thread_current ()->spt, &entry_to_find.elem);
+      if (elem == NULL)
+        {
+          entry_to_find.upage = pg_round_down (fault_addr);
+          elem = hash_find (&thread_current ()->spt, &entry_to_find.elem);
+        }
+
+      struct spt_entry *found = NULL;
+      if (elem != NULL)
+        found = hash_entry (elem, struct spt_entry, elem);
+
+      if (found->swap_slot != -1)
+        {
+          swap_load (found);
+          found->upage = pg_round_down (fault_addr);
+          return;
+        }
+
+      if (found->mmap_data != NULL)
+        {
+          struct file *file = found->mmap_data->file;
+          off_t ofs = found->mmap_data->ofs;
+          void *frame = falloc_get_frame (PAL_USER | PAL_ZERO, found);
+          file_read (file, frame, ofs);
+
+          return;
+        }
+
+      if (found->executable_data != NULL)
+        {
+          struct file *file = found->executable_data->file;
+          off_t ofs = found->executable_data->ofs;
+          uint8_t *upage = found->executable_data->upage;
+          uint32_t read_bytes = found->executable_data->read_bytes;
+          uint32_t zero_bytes = found->executable_data->zero_bytes;
+          bool writable = found->executable_data->writable;
+          file_seek (file, ofs);
+
+          /* Calculate how to fill this page.
+             We will read PAGE_READ_BYTES bytes from FILE
+             and zero the final PAGE_ZERO_BYTES bytes. */
+          size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+          size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+          /* Get a page of memory. */
+          uint8_t *kpage = falloc_get_frame (PAL_USER, found);
+          if (kpage == NULL)
+            kill (f);
+
+          /* Load this page. */
+          if (file_read (file, kpage, page_read_bytes) != (int)page_read_bytes)
+            {
+              palloc_free_page (kpage);
+              kill (f);
+            }
+          memset (kpage + page_read_bytes, 0, page_zero_bytes);
+
+          /* Add the page to the process's address space. */
+          if (!install_page (upage, kpage, writable))
+            {
+              palloc_free_page (kpage);
+              kill (f);
+            }
+
+          /* Advance. */
+          read_bytes -= page_read_bytes;
+          zero_bytes -= page_zero_bytes;
+          upage += PGSIZE;
+          return;
+        }
+    }
+
   if (!user)
     {
       f->eip = (void (*) (void))f->eax;
       f->eax = 0xFFFFFFFF;
-      return;
     }
-
-  if (fault_addr >= PHYS_BASE 
-    || (void *)pagedir_get_page (thread_current ()->pagedir,
-                                 fault_addr) == NULL)
-    exit (-1);
-
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-
-  kill (f);
+  exit (-1);
 }

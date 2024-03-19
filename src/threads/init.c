@@ -1,4 +1,19 @@
 #include "threads/init.h"
+#include "devices/input.h"
+#include "devices/kbd.h"
+#include "devices/rtc.h"
+#include "devices/serial.h"
+#include "devices/shutdown.h"
+#include "devices/timer.h"
+#include "devices/vga.h"
+#include "threads/interrupt.h"
+#include "threads/io.h"
+#include "threads/loader.h"
+#include "threads/malloc.h"
+#include "threads/palloc.h"
+#include "threads/pte.h"
+#include "vm/frame.h"
+#include "vm/swap.h"
 #include <console.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -8,25 +23,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "devices/kbd.h"
-#include "devices/input.h"
-#include "devices/serial.h"
-#include "devices/shutdown.h"
-#include "devices/timer.h"
-#include "devices/vga.h"
-#include "devices/rtc.h"
-#include "threads/interrupt.h"
-#include "threads/io.h"
-#include "threads/loader.h"
-#include "threads/malloc.h"
-#include "threads/palloc.h"
-#include "threads/pte.h"
-#include "threads/thread.h"
 #ifdef USERPROG
-#include "userprog/process.h"
 #include "userprog/exception.h"
 #include "userprog/gdt.h"
-#include "userprog/syscall.h"
+#include "userprog/process.h"
 #include "userprog/tss.h"
 #else
 #include "tests/threads/tests.h"
@@ -97,6 +97,7 @@ main (void)
   /* Initialize memory system. */
   palloc_init (user_page_limit);
   malloc_init ();
+  falloc_init ();
   paging_init ();
 
   /* Segmentation. */
@@ -126,6 +127,9 @@ main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
+
+  swap_init ();
+  mmap_table_init ();
 
   printf ("Boot complete.\n");
   
