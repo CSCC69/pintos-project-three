@@ -26,6 +26,11 @@ void
 swap_evict(void)
 {
   struct frame *f = frame_get_victim();
+
+  if(f->spt_entry->mmap_data != NULL){
+    // handle mmap
+  }
+
   // printf("f->start_addr: %p\n", f->start_addr);
   // printf("hash size: %d\n", hash_size(get_frame_table()));
   struct block *swap_disk = block_get_role(BLOCK_SWAP);

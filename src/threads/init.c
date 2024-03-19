@@ -1,5 +1,4 @@
 #include "threads/init.h"
-#include "vm/page.h"
 #include <console.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -23,13 +22,11 @@
 #include "threads/palloc.h"
 #include "vm/frame.h"
 #include "threads/pte.h"
-#include "threads/thread.h"
 #include "vm/swap.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
 #include "userprog/gdt.h"
-#include "userprog/syscall.h"
 #include "userprog/tss.h"
 #else
 #include "tests/threads/tests.h"
