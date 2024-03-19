@@ -1,6 +1,7 @@
 #include "../threads/palloc.h"
 #include "kernel/hash.h"
 #include "stddef.h"
+#include "threads/synch.h"
 
 struct frame
 {
@@ -8,7 +9,7 @@ struct frame
   struct list_elem list_elem;
   void *start_addr;
   struct spt_entry *spt_entry;
-  struct lock *frame_lock;
+  struct lock frame_lock;
 };
 
 struct hash *get_frame_table (void);

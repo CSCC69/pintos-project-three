@@ -56,7 +56,7 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   hash_insert (&frame_table, &f->elem);
   list_push_back (&frame_list, &f->list_elem);
 
-  lock_release (&frame_lock);
+  lock_release (&f->frame_lock);
   return page;
 }
 
