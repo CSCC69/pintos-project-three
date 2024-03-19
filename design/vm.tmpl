@@ -41,10 +41,16 @@ In the page_fault() handler, the fault_addr is given. We round down this value t
 >> kernel and user virtual addresses that alias a single frame, or
 >> alternatively how do you avoid the issue?
 
+We store the currently linked supplemental page table entry in the frame struct.
+When we evict a frame, we check if the page has been accessed, and its dirty bits set.
+
 ---- SYNCHRONIZATION ----
 
 >> A4: When two user processes both need a new frame at the same time,
 >> how are races avoided?
+
+We use a lock, frame_lock, to avoid race conditions between processes requesting the same frame
+addresses concurrently. We also use this to prevent two processes from attempting to free the same frame at once.
 
 ---- RATIONALE ----
 
@@ -68,18 +74,24 @@ We chose a hashmap so that we could quickly find SPT entries in O(1) time from a
 >> B2: When a frame is required but none is free, some frame must be
 >> evicted.  Describe your code for choosing a frame to evict.
 
-We randomly select a frame from the frame table.
+We store our frames in a list as well.
+In a loop, we pop the front and check if it has been accessed using pagedir_is_accessed. If it has been accessed we set
+its accessed to false using pagedir_set_accessed. Then we push it to the end of the list and continue looping.
+We do this until we find a frame that has not been accessed.
 
 >> B3: When a process P obtains a frame that was previously used by a
 >> process Q, how do you adjust the page table (and any other data
 >> structures) to reflect the frame Q no longer has?
+
+We store the supplemental page table entry in the frame struct and when a new process obtains the frame we
+create a new spt entry that corresponds to that process. 
 
 >> B4: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
 
 Our heuristic for deciding whether to grow the stack is whether the virtual address is within 32 bytes of the previous stack pointer. If yes, we grow the stack. Otherwise,
-it's considered an invalid access.
+we consider other page fault reasons, such as lazy loading executables.
 
 ---- SYNCHRONIZATION ----
 
@@ -93,16 +105,24 @@ it's considered an invalid access.
 >> the page during the eviction process?  How do you avoid a race
 >> between P evicting Q's frame and Q faulting the page back in?
 
+We use a per-frame frame lock when acquiring and freeing frames.
+This ensures that each frame is safe when attempting operation from other attemps to access it.
+
 >> B7: Suppose a page fault in process P causes a page to be read from
 >> the file system or swap.  How do you ensure that a second process Q
 >> cannot interfere by e.g. attempting to evict the frame while it is
 >> still being read in?
+
+If it gets evicted when being read in, we will page fault again and re-read it.
 
 >> B8: Explain how you handle access to paged-out pages that occur
 >> during system calls.  Do you use page faults to bring in pages (as
 >> in user programs), or do you have a mechanism for "locking" frames
 >> into physical memory, or do you use some other design?  How do you
 >> gracefully handle attempted accesses to invalid virtual addresses?
+
+We use page faults to bring in pages. We check the virtual address validity by attempting to find them in our supplemental page
+table. If we don't, we exit.
 
 ---- RATIONALE ----
 
@@ -112,6 +132,10 @@ it's considered an invalid access.
 >> possibility for deadlock but allows for high parallelism.  Explain
 >> where your design falls along this continuum and why you chose to
 >> design it this way.
+
+Our design consists of multiple locks but one for each frame unit. This allows flexibility between separate vm units, but allow for
+synchronization between the same frame.
+
 
              MEMORY MAPPED FILES
              ===================
@@ -128,6 +152,15 @@ it's considered an invalid access.
 >> memory subsystem.  Explain how the page fault and eviction
 >> processes differ between swap pages and other pages.
 
+When we get an mmap syscall, we create supplemental page table entries, and mmap_data entries for each page required to read in the file,
+without actually reading the file in yet. When we get a page fault, we can see whether we are given an mmap entry, then load that segment
+of the file in its associated page. We store the files offset and read bytes so that we can load the required section into the page.
+Virtual addresses held by the mmap_data entries are contiguous and hold the subsequent remaining pages
+in their sequence allowing us to be able to munmap entire sequences of mmap_data page entries.
+
+For mmap pages, we never write them to the swap disk. When we evict mmap pages, we check if the page is dirty. If it is, we write it back to
+the original file. If it is not, it gets discarded and freed.
+
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
 
@@ -142,6 +175,9 @@ start of every next page required to mmap the file. If there is a page mapped at
 >> that much of their implementation can be shared.  Explain why your
 >> implementation either does or does not share much of the code for
 >> the two situations.
+
+We share supplemental page entries when loading mmap from a file, because it also acts as an intermediary for the data in memory.
+It also shares the code with the code for reading and lazily loading files in the page fault handler.
 
                SURVEY QUESTIONS
                ================
