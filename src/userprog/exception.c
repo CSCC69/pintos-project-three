@@ -159,9 +159,6 @@ page_fault (struct intr_frame *f)
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
-//   printf("fault_addr: %p\n", fault_addr);
-// printf("f %p\n", f);
-
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
   intr_enable ();
@@ -178,7 +175,6 @@ page_fault (struct intr_frame *f)
   if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000)
   {
    if(user) {
-      // PANIC("fault_addr: %p f->eip %p \n", fault_addr, f->eip);
       exit (-1);
    }
   }
@@ -195,12 +191,9 @@ page_fault (struct intr_frame *f)
          
          if (new_frame == NULL)
          kill(f);
-         // printf("end\n");
          return;
       }
    
-
-      
       void* page_with_fault = pagedir_get_page(thread_current()->pagedir, pg_round_down(fault_addr));
       struct spt_entry entry_to_find = { .upage = page_with_fault };
       struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
@@ -209,7 +202,6 @@ page_fault (struct intr_frame *f)
          entry_to_find.upage = pg_round_down(fault_addr);
          elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
       }
-      //   printf("page_fault 3\n");
 
       struct spt_entry *found = NULL;
       if (elem != NULL) {
@@ -220,19 +212,12 @@ page_fault (struct intr_frame *f)
       {
          swap_load(found);
          found->upage = pg_round_down(fault_addr);
-         // printf("end\n");
          return;
       }
 
       if (found->mmap_data != NULL) {
          struct file *file = found->mmap_data->file;
-         // int id = found->mmap_data->id;
-         // void *addr = found->mmap_data->addr;
-         // int read_bytes = found->mmap_data->read_bytes;
-         // int zero_bytes = found->mmap_data->zero_bytes;
          off_t ofs = found->mmap_data->ofs;
-         // int remaining_page_count = found->mmap_data->remaining_page_count;
-         // struct hash_elem elem = found->mmap_data->elem;
 
          void* frame = falloc_get_frame(PAL_USER | PAL_ZERO, found);
 
@@ -250,7 +235,6 @@ page_fault (struct intr_frame *f)
          uint32_t zero_bytes = found->executable_data->zero_bytes;
          bool writable = found->executable_data->writable;
          file_seek (file, ofs);
-         // printf("page_fault 4\n");
 
          /* Calculate how to fill this page.
             We will read PAGE_READ_BYTES bytes from FILE
@@ -259,9 +243,7 @@ page_fault (struct intr_frame *f)
          size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
          /* Get a page of memory. */
-         // printf("MIDDLE 1\n");
          uint8_t *kpage = falloc_get_frame(PAL_USER, found);
-         // printf("MIDDLE 2\n");
          if (kpage == NULL)
             kill(f);
 
@@ -272,34 +254,28 @@ page_fault (struct intr_frame *f)
             kill(f);
             }
          memset (kpage + page_read_bytes, 0, page_zero_bytes);
-         // printf("page_fault 5\n");
 
          /* Add the page to the process's address space. */
-         if (!install_page (upage, kpage, writable)) // TODO adding to spt is a problem here since we manually add to spt in load_segment
+         if (!install_page (upage, kpage, writable)) 
             {
             palloc_free_page (kpage);
             kill(f);
             }
 
          /* Advance. */
-         read_bytes -= page_read_bytes; //TODO maybe track this in struct and load each page lazily instead of entire code on first page fault
+         read_bytes -= page_read_bytes; 
          zero_bytes -= page_zero_bytes;
          upage += PGSIZE;   
-         
-         // printf("end\n");
          return;
       }
    }
 
 
-//   printf("page_fault 6\n");
 
   if (!user)
     {
       f->eip = (void (*) (void))f->eax;
       f->eax = 0xFFFFFFFF;
     }
-   // printf("end\n");
    exit(-1);
-   // kill(f);
 }
