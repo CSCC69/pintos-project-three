@@ -8,9 +8,9 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Nathanael Robbins <nate.robbins@mail.utoronto.ca>
+Lucas Ilea <lucas.ilea@mail.utoronto.ca>
+Louis Ren <louis.ren@mail.utoronto.ca>
 
 ---- PRELIMINARIES ----
 
@@ -35,6 +35,8 @@ FirstName LastName <email@domain.example>
 >> A2: In a few paragraphs, describe your code for accessing the data
 >> stored in the SPT about a given page.
 
+In the page_fault() handler, the fault_addr is given. We round down this value to the nearest page, and then use hash_find to find the corresponding SPT entry.
+
 >> A3: How does your code coordinate accessed and dirty bits between
 >> kernel and user virtual addresses that alias a single frame, or
 >> alternatively how do you avoid the issue?
@@ -48,6 +50,9 @@ FirstName LastName <email@domain.example>
 
 >> A5: Why did you choose the data structure(s) that you did for
 >> representing virtual-to-physical mappings?
+
+The data structure we used to represent virtual-to-physical mappings is a hash table used for the supplemental page table.
+We chose a hashmap so that we could quickly find SPT entries in O(1) time from a faulting address.
 
                PAGING TO AND FROM DISK
                =======================
@@ -63,6 +68,8 @@ FirstName LastName <email@domain.example>
 >> B2: When a frame is required but none is free, some frame must be
 >> evicted.  Describe your code for choosing a frame to evict.
 
+We randomly select a frame from the frame table.
+
 >> B3: When a process P obtains a frame that was previously used by a
 >> process Q, how do you adjust the page table (and any other data
 >> structures) to reflect the frame Q no longer has?
@@ -70,6 +77,9 @@ FirstName LastName <email@domain.example>
 >> B4: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
+
+Our heuristic for deciding whether to grow the stack is whether the virtual address is within 32 bytes of the previous stack pointer. If yes, we grow the stack. Otherwise,
+it's considered an invalid access.
 
 ---- SYNCHRONIZATION ----
 
@@ -121,6 +131,9 @@ FirstName LastName <email@domain.example>
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
 
+To determine whether a new file mapping overlaps segments of memory that are already mapped, we check the result of pagedir_get_page starting at the address passed into the mmap syscall, and for the
+start of every next page required to mmap the file. If there is a page mapped at any of those addresses, we return early from mmap.
+
 ---- RATIONALE ----
 
 >> C4: Mappings created with "mmap" have similar semantics to those of
@@ -141,6 +154,8 @@ the quarter.
 
 >> In your opinion, was this assignment, or any one of the three problems
 >> in it, too easy or too hard?  Did it take too long or too little time?
+
+Very hard. But also we didn't start until there were only 5 days left.
 
 >> Did you find that working on a particular part of the assignment gave
 >> you greater insight into some aspect of OS design?
