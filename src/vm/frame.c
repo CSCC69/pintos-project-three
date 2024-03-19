@@ -39,67 +39,42 @@ falloc_init (void)
 void *
 falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
 {
-  // lock_acquire(&frame_lock);
+  lock_acquire(&frame_lock);
   struct frame *f = malloc(sizeof(struct frame));
   void *page = NULL;
 
-  // int c = 0;
   while ((page = palloc_get_page(flags)) == NULL)
   {
-    // printf("swapping %d !!!!!!!! \n", c++);
     swap_evict();
-    // printf("finished swappings\n");
   }
   spt_entry->kpage = page;
-  // printf("found page %p\n", page);
 
-  // printf("count %d\n", mycount++);
   f->start_addr = page;
   f->spt_entry = spt_entry;
   hash_insert(&frame_table, &f->elem);
   list_push_back(&frame_list, &f->list_elem);
   
-  // printf("returning\n");
-  // lock_release(&frame_lock);
-  
+  lock_release(&frame_lock);
   return page;
 }
 
 void
 falloc_free_frame (struct frame *f)
 {
-//   printf("falloc_free_frame 0\n");
+  lock_acquire(&frame_lock);
   if(f->spt_entry->owner->pagedir != (void *)0xcccccccc) {
     ASSERT(f->spt_entry->owner != NULL);
     pagedir_clear_page(f->spt_entry->owner->pagedir, f->spt_entry->upage);
   }
     
-  // printf("falloc_free_frame 1\n");
  if (f != NULL && f->spt_entry->kpage != NULL){
     palloc_free_page(f->spt_entry->kpage);
   } 
-  // printf("falloc_free_frame 2\n");
   if (f != NULL){
     free(f);   
   }
-  // printf("falloc_free_frame 3\n");
+  lock_release(&frame_lock);
 }
-// {
-//   // printf("falloc_free_frame 0\n");
-//   struct frame f_to_find = { .start_addr = page};
-//   // printf("falloc_free_frame 0.5\n");
-//   // f_to_find->start_addr = page;
-//   // printf("falloc_free_frame 1\n");
-//   struct frame *f = hash_entry(hash_find(&frame_table, &f_to_find.elem), struct frame, elem);
-//   // printf("falloc_free_frame 2\n");
-//  if (f != NULL && f->start_addr != NULL){
-//     // printf("falloc_free_frame 3\n");
-//     palloc_free_page(f->start_addr);
-//   } 
-//   // printf("falloc_free_frame 4\n");
-//   free(f);
-//   // printf("falloc_free_frame 5\n");
-// }
 
 unsigned frame_hash (const struct hash_elem *frame_elem, void *aux UNUSED)
 {

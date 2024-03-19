@@ -174,133 +174,241 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-   // printf("user: %d\n", user);
 
-  if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000)
-  {
-   if(user) {
-      // PANIC("fault_addr: %p f->eip %p \n", fault_addr, f->eip);
-      exit (-1);
+   // is kernel access
+   if (!user) {
+      f->eip = (void (*) (void))f->eax;
+      f->eax = 0xFFFFFFFF;
+      return;
    }
-  }
 
-   if (fault_addr != 0 && fault_addr >= (void*) 0x08048000 && is_user_vaddr(fault_addr))
+   // is user access 
+
+   // check is fault address is invalid
+   if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000) {
+      exit(-1);
+   }
+
+   
+
+   void* page_with_fault = pagedir_get_page(thread_current()->pagedir, pg_round_down(fault_addr));
+   struct spt_entry entry_to_find = { .upage = page_with_fault };
+   struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
+   if (elem == NULL)
    {
-      //STACK GROWTH
-      if (fault_addr < PHYS_BASE && (fault_addr >= f->esp - STACK_ACCESS_HEURISTIC || fault_addr >= thread_current()->esp - STACK_ACCESS_HEURISTIC))
+      entry_to_find.upage = pg_round_down(fault_addr);
+      elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
+   }
+
+   struct spt_entry *found = NULL;
+   if (elem != NULL) {
+      found = hash_entry(elem, struct spt_entry, elem);
+   }
+
+   // is in swap
+   if (found->swap_slot != -1)
+   {
+      swap_load(found);
+      found->upage = pg_round_down(fault_addr);
+      return;
+   }
+
+   // load mmap data
+   if (found != NULL && found->mmap_data != NULL) {
+      struct file *file = found->mmap_data->file;
+      off_t ofs = found->mmap_data->ofs;
+
+      void* frame = falloc_get_frame(PAL_USER | PAL_ZERO, found);
+
+      file_read(file, frame, ofs);
+
+      install_page(found->upage, found->kpage, true);
+
+      return;
+   }
+
+   // lazy load 
+   if (found->executable_data != NULL)
       {
-         struct spt_entry *spt_entry = create_spt_entry(pg_round_down(fault_addr), NULL, -1, NULL, NULL, thread_current());
-         hash_insert(&thread_current()->spt, &spt_entry->elem);
-         void *new_frame = falloc_get_frame(0, spt_entry);
-         pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), new_frame, true);
-         
-         if (new_frame == NULL)
+      struct file *file = found->executable_data->file;
+      off_t ofs = found->executable_data->ofs;
+      uint8_t *upage = found->executable_data->upage;
+      uint32_t read_bytes = found->executable_data->read_bytes;
+      uint32_t zero_bytes = found->executable_data->zero_bytes;
+      bool writable = found->executable_data->writable;
+      file_seek (file, ofs);
+
+      /* Calculate how to fill this page.
+         We will read PAGE_READ_BYTES bytes from FILE
+         and zero the final PAGE_ZERO_BYTES bytes. */
+      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+      size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+      /* Get a page of memory. */
+      uint8_t *kpage = falloc_get_frame(PAL_USER, found);
+      if (kpage == NULL)
          kill(f);
-         // printf("end\n");
-         return;
+
+      /* Load this page. */
+      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+         {
+         palloc_free_page (kpage);
+         kill(f);
+         }
+      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+
+      /* Add the page to the process's address space. */
+      if (!install_page (upage, kpage, writable)) 
+      {
+      palloc_free_page (kpage);
+      kill(f);
       }
+      return;
+      }
+
+   //STACK GROWTH
+   if (fault_addr < PHYS_BASE && (fault_addr >= f->esp - STACK_ACCESS_HEURISTIC || fault_addr >= thread_current()->esp - STACK_ACCESS_HEURISTIC))
+   {
+      struct spt_entry *spt_entry = create_spt_entry(pg_round_down(fault_addr), NULL, -1, NULL, NULL, thread_current());
+      hash_insert(&thread_current()->spt, &spt_entry->elem);
+      void *new_frame = falloc_get_frame(0, spt_entry);
+      pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), new_frame, true);
+      
+      if (new_frame == NULL)
+      kill(f);
+      return;
+   }
+
+   // in all other cases, exit(-1)
+   exit(-1);
+
+
+
+//   if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000)
+//   {
+//    if(user) {
+//       // PANIC("fault_addr: %p f->eip %p \n", fault_addr, f->eip);
+//       exit (-1);
+//    }
+//   }
+
+//    if (fault_addr != 0 && fault_addr >= (void*) 0x08048000 && is_user_vaddr(fault_addr))
+//    {
+//       //STACK GROWTH
+//       if (fault_addr < PHYS_BASE && (fault_addr >= f->esp - STACK_ACCESS_HEURISTIC || fault_addr >= thread_current()->esp - STACK_ACCESS_HEURISTIC))
+//       {
+//          struct spt_entry *spt_entry = create_spt_entry(pg_round_down(fault_addr), NULL, -1, NULL, NULL, thread_current());
+//          hash_insert(&thread_current()->spt, &spt_entry->elem);
+//          void *new_frame = falloc_get_frame(0, spt_entry);
+//          pagedir_set_page(thread_current()->pagedir, pg_round_down(fault_addr), new_frame, true);
+         
+//          if (new_frame == NULL)
+//          kill(f);
+//          // printf("end\n");
+//          return;
+//       }
    
 
       
-      void* page_with_fault = pagedir_get_page(thread_current()->pagedir, pg_round_down(fault_addr));
-      struct spt_entry entry_to_find = { .upage = page_with_fault };
-      struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
-      if (elem == NULL)
-      {
-         entry_to_find.upage = pg_round_down(fault_addr);
-         elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
-      }
-      //   printf("page_fault 3\n");
+//       void* page_with_fault = pagedir_get_page(thread_current()->pagedir, pg_round_down(fault_addr));
+//       struct spt_entry entry_to_find = { .upage = page_with_fault };
+//       struct hash_elem *elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
+//       if (elem == NULL)
+//       {
+//          entry_to_find.upage = pg_round_down(fault_addr);
+//          elem = hash_find(&thread_current()->spt, &entry_to_find.elem);
+//       }
+//       //   printf("page_fault 3\n");
 
-      struct spt_entry *found = NULL;
-      if (elem != NULL) {
-         found = hash_entry(elem, struct spt_entry, elem);
-      }
+//       struct spt_entry *found = NULL;
+//       if (elem != NULL) {
+//          found = hash_entry(elem, struct spt_entry, elem);
+//       }
 
-      if (found->swap_slot != -1)
-      {
-         swap_load(found);
-         found->upage = pg_round_down(fault_addr);
-         // printf("end\n");
-         return;
-      }
+//       if (found->swap_slot != -1)
+//       {
+//          swap_load(found);
+//          found->upage = pg_round_down(fault_addr);
+//          // printf("end\n");
+//          return;
+//       }
 
-      if (found->mmap_data != NULL) {
-         struct file *file = found->mmap_data->file;
-         // int id = found->mmap_data->id;
-         // void *addr = found->mmap_data->addr;
-         // int read_bytes = found->mmap_data->read_bytes;
-         // int zero_bytes = found->mmap_data->zero_bytes;
-         off_t ofs = found->mmap_data->ofs;
-         // int remaining_page_count = found->mmap_data->remaining_page_count;
-         // struct hash_elem elem = found->mmap_data->elem;
+//       if (found->mmap_data != NULL) {
+//          struct file *file = found->mmap_data->file;
+//          // int id = found->mmap_data->id;
+//          // void *addr = found->mmap_data->addr;
+//          // int read_bytes = found->mmap_data->read_bytes;
+//          // int zero_bytes = found->mmap_data->zero_bytes;
+//          off_t ofs = found->mmap_data->ofs;
+//          // int remaining_page_count = found->mmap_data->remaining_page_count;
+//          // struct hash_elem elem = found->mmap_data->elem;
 
-         void* frame = falloc_get_frame(PAL_USER | PAL_ZERO, found);
+//          void* frame = falloc_get_frame(PAL_USER | PAL_ZERO, found);
 
-         file_read(file, frame, ofs);
+//          file_read(file, frame, ofs);
 
-         return;
-      }
+//          return;
+//       }
 
-      if (found->executable_data != NULL)
-      {
-         struct file *file = found->executable_data->file;
-         off_t ofs = found->executable_data->ofs;
-         uint8_t *upage = found->executable_data->upage;
-         uint32_t read_bytes = found->executable_data->read_bytes;
-         uint32_t zero_bytes = found->executable_data->zero_bytes;
-         bool writable = found->executable_data->writable;
-         file_seek (file, ofs);
-         // printf("page_fault 4\n");
+//       if (found->executable_data != NULL)
+//       {
+//          struct file *file = found->executable_data->file;
+//          off_t ofs = found->executable_data->ofs;
+//          uint8_t *upage = found->executable_data->upage;
+//          uint32_t read_bytes = found->executable_data->read_bytes;
+//          uint32_t zero_bytes = found->executable_data->zero_bytes;
+//          bool writable = found->executable_data->writable;
+//          file_seek (file, ofs);
+//          // printf("page_fault 4\n");
 
-         /* Calculate how to fill this page.
-            We will read PAGE_READ_BYTES bytes from FILE
-            and zero the final PAGE_ZERO_BYTES bytes. */
-         size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-         size_t page_zero_bytes = PGSIZE - page_read_bytes;
+//          /* Calculate how to fill this page.
+//             We will read PAGE_READ_BYTES bytes from FILE
+//             and zero the final PAGE_ZERO_BYTES bytes. */
+//          size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+//          size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-         /* Get a page of memory. */
-         // printf("MIDDLE 1\n");
-         uint8_t *kpage = falloc_get_frame(PAL_USER, found);
-         // printf("MIDDLE 2\n");
-         if (kpage == NULL)
-            kill(f);
+//          /* Get a page of memory. */
+//          // printf("MIDDLE 1\n");
+//          uint8_t *kpage = falloc_get_frame(PAL_USER, found);
+//          // printf("MIDDLE 2\n");
+//          if (kpage == NULL)
+//             kill(f);
 
-         /* Load this page. */
-         if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-            {
-            palloc_free_page (kpage);
-            kill(f);
-            }
-         memset (kpage + page_read_bytes, 0, page_zero_bytes);
-         // printf("page_fault 5\n");
+//          /* Load this page. */
+//          if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+//             {
+//             palloc_free_page (kpage);
+//             kill(f);
+//             }
+//          memset (kpage + page_read_bytes, 0, page_zero_bytes);
+//          // printf("page_fault 5\n");
 
-         /* Add the page to the process's address space. */
-         if (!install_page (upage, kpage, writable)) // TODO adding to spt is a problem here since we manually add to spt in load_segment
-            {
-            palloc_free_page (kpage);
-            kill(f);
-            }
+//          /* Add the page to the process's address space. */
+//          if (!install_page (upage, kpage, writable)) // TODO adding to spt is a problem here since we manually add to spt in load_segment
+//             {
+//             palloc_free_page (kpage);
+//             kill(f);
+//             }
 
-         /* Advance. */
-         read_bytes -= page_read_bytes; //TODO maybe track this in struct and load each page lazily instead of entire code on first page fault
-         zero_bytes -= page_zero_bytes;
-         upage += PGSIZE;   
+//          /* Advance. */
+//          read_bytes -= page_read_bytes; //TODO maybe track this in struct and load each page lazily instead of entire code on first page fault
+//          zero_bytes -= page_zero_bytes;
+//          upage += PGSIZE;   
          
-         // printf("end\n");
-         return;
-      }
-   }
+//          // printf("end\n");
+//          return;
+//       }
+//    }
 
 
-//   printf("page_fault 6\n");
+// //   printf("page_fault 6\n");
 
-  if (!user)
-    {
-      f->eip = (void (*) (void))f->eax;
-      f->eax = 0xFFFFFFFF;
-    }
-   // printf("end\n");
-   exit(-1);
-   // kill(f);
+//   if (!user)
+//     {
+//       f->eip = (void (*) (void))f->eax;
+//       f->eax = 0xFFFFFFFF;
+//     }
+//    // printf("end\n");
+//    exit(-1);
+//    // kill(f);
 }
