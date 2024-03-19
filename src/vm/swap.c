@@ -72,17 +72,18 @@ swap_load (struct spt_entry *spt_entry)
 struct frame *
 frame_get_victim (void)
 {
-  // Randomly select a frame to evict
-  struct list *frame = get_frame_list ();
-  int size = list_size (frame);
-  int r = random_ulong () % size;
-  struct list_elem *e;
-  for (int i = 0; i < r || list_entry (e, struct frame, list_elem)->spt_entry->kpage == NULL; i++)
-    {
-      e = list_pop_front (frame);
-      list_push_back (frame, e);
-    }
-  struct frame *f = list_entry (e, struct frame, list_elem);
+  struct list *frame = get_frame_list();
+  int size = list_size(frame);
+
+  struct list_elem *e = list_pop_front(frame);
+  struct frame *f = list_entry(e, struct frame, list_elem);
+  while(pagedir_is_accessed(f->spt_entry->owner, f->spt_entry->upage)){
+    pagedir_set_accessed(f->spt_entry->owner, f->spt_entry->upage, false);
+    list_push_back(frame, e);
+
+    e = list_pop_front(frame);
+    f = list_entry(e, struct frame, list_elem);
+  }
 
   return f;
 }
