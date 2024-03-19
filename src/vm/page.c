@@ -58,7 +58,8 @@ struct executable_data *create_executable_data(struct file *file, off_t ofs, uin
     return data;
 }
 
-struct mmap_data *create_mmap_data(struct file *file, int id, void *addr){
+struct mmap_data *create_mmap_data(struct file *file, int id, void *addr, int read_bytes, int zero_bytes, off_t ofs, int remaining_pages) {
+  
     struct mmap_data *data = malloc(sizeof(struct mmap_data));
     if (data == NULL) {
         return NULL;
@@ -68,6 +69,10 @@ struct mmap_data *create_mmap_data(struct file *file, int id, void *addr){
     data->file = file;
     data->id = id;
     data->addr = addr;
+    data->read_bytes = read_bytes;
+    data->zero_bytes = zero_bytes;
+    data->ofs = ofs;
+    data->remaining_page_count = remaining_pages;
 
     return data;
 }

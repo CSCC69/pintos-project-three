@@ -225,6 +225,9 @@ page_fault (struct intr_frame *f)
          return;
       }
 
+      if (found->mmap_data != NULL) {
+      }
+
       if (found->executable_data != NULL)
       {
          struct file *file = found->executable_data->file;

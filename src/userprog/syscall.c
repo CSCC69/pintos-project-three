@@ -17,6 +17,7 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include <string.h>
+#include "threads/malloc.h"
 #include <syscall-nr.h>
 #include <userprog/pagedir.h>
 
@@ -226,18 +227,39 @@ mapid_t mmap (int fd, void *addr)
   if (!file)
     return -1;
 
-  if (filesize(fd) == 0 ) 
+  int size = filesize(fd);
+  if (size == 0 ) 
     return -1;
 
-  if (addr == NULL) 
+  if (addr == NULL || (uint32_t)addr % PGSIZE != 0) 
     return -1;
  
   int id = (uint32_t) addr;
 
-  struct mmap_data *data = create_mmap_data(file, id, addr);
+  uint32_t read_bytes = size;
+  off_t ofs = 0;
 
-  create_spt_entry(addr, NULL, -1, NULL, data, thread_current());
-  hash_insert(get_mmap_table(), &data->elem);
+  int adder = size % PGSIZE == 0 ? 0 : 1;
+  int page_count = size / PGSIZE + adder;
+
+  for (int i = 0; i < page_count; i++) {
+    void *pg_address = addr + (i * PGSIZE);
+    if (pagedir_get_page(thread_current()->pagedir, pg_address) != NULL)
+      return -1;
+  }
+
+  for (int i = 0; i < page_count; i++) {
+    size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+    size_t page_zero_bytes = PGSIZE - page_read_bytes;
+    void *pg_address = addr + (i * PGSIZE);
+    struct mmap_data *data = create_mmap_data(file, (uint32_t)pg_address, pg_address, page_read_bytes, page_zero_bytes, ofs, page_count - i);
+    struct spt_entry *entry = create_spt_entry(pg_address, NULL, -1, NULL, data, thread_current());
+    hash_insert(&thread_current()->spt, &entry->elem);
+    hash_insert(get_mmap_table(), &data->elem);
+
+    read_bytes -= page_read_bytes;
+    ofs += PGSIZE;
+  }
 
   return id;
 }
@@ -247,10 +269,26 @@ void munmap (mapid_t mapping)
 
   void *addr = (void *) mapping;
 
-  struct mmap_data data = { .addr = addr };
+  struct mmap_data data_to_find = { .addr = addr };
 
-  struct hash_elem *elem = hash_find(get_mmap_table(), &data.elem);
+  struct hash_elem *elem = hash_find(get_mmap_table(), &data_to_find.elem);
+  if (elem == NULL)
+   return;
 
+  struct mmap_data *data = hash_entry(elem, struct mmap_data, elem);
+
+  for (int i = 0; data->remaining_page_count; i++) {
+    void *pg_address = addr + (i * PGSIZE);
+    struct mmap_data data_to_find = { .addr = pg_address };
+    struct mmap_data *data = hash_entry(hash_find(get_mmap_table(), &data_to_find.elem), struct mmap_data, elem);
+    hash_delete(get_mmap_table(), &data->elem);
+    free(data);
+    struct spt_entry entry_to_find = { .upage = pg_address };
+    struct spt_entry *entry = hash_entry(hash_find(&thread_current()->spt, &entry_to_find.elem), struct spt_entry, elem);
+    hash_delete(&thread_current()->spt, &entry->elem);
+    free(entry);
+    palloc_free_page(pagedir_get_page(thread_current()->pagedir, pg_address));
+  }
 }
 
 /* Kernel implementation of the halt syscall */
