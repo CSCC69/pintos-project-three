@@ -29,7 +29,13 @@ struct mmap_data
     struct file *file;
     int id;
     void *addr;
+    struct hash_elem elem;
   };
+
+void mmap_table_init(void);
+unsigned mmap_hash(const struct hash_elem *hash_elem, void *aux UNUSED);
+bool mmap_less(const struct hash_elem *elem1, const struct hash_elem *elem2, void *aux UNUSED);
+struct hash* get_mmap_table(void);
 
 struct spt_entry *create_spt_entry(void *upage, void *kpage, int swap_slot, struct executable_data *executable_data, struct mmap_data *mmap_data, struct thread *owner);
 

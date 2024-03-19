@@ -1,4 +1,5 @@
 #include "threads/init.h"
+#include "vm/page.h"
 #include <console.h>
 #include <debug.h>
 #include <inttypes.h>
@@ -131,6 +132,8 @@ main (void)
 #endif
 
   swap_init();
+  mmap_table_init();
+  
 
   printf ("Boot complete.\n");
   

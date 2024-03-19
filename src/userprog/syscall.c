@@ -1,6 +1,8 @@
 #include "userprog/syscall.h"
 #include "devices/input.h"
 #include "devices/shutdown.h"
+#include "hash.h"
+#include "vm/page.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "list.h"
@@ -215,11 +217,39 @@ syscall_handler (struct intr_frame *f)
 
 mapid_t mmap (int fd, void *addr)
 {
-  return 42;
+
+  if (fd == 0 || fd == 1)
+    return -1;
+
+  struct file *file = get_open_file (thread_current (), fd);
+
+  if (!file)
+    return -1;
+
+  if (filesize(fd) == 0 ) 
+    return -1;
+
+  if (addr == NULL) 
+    return -1;
+ 
+  int id = (uint32_t) addr;
+
+  struct mmap_data *data = create_mmap_data(file, id, addr);
+
+  create_spt_entry(addr, NULL, -1, NULL, data, thread_current());
+  hash_insert(get_mmap_table(), &data->elem);
+
+  return id;
 }
 
 void munmap (mapid_t mapping)
 {
+
+  void *addr = (void *) mapping;
+
+  struct mmap_data data = { .addr = addr };
+
+  struct hash_elem *elem = hash_find(get_mmap_table(), &data.elem);
 
 }
 
