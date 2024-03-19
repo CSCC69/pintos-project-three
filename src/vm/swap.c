@@ -27,7 +27,7 @@ swap_evict(void)
 {
   struct frame *f = frame_get_victim();
 
-  if(pagedir_is_dirty(f->spt_entry->owner->pagedir, f->spt_entry->upage)) {
+  // if(pagedir_is_dirty(f->spt_entry->owner->pagedir, f->spt_entry->upage)) {
     if(f->spt_entry->mmap_data != NULL){
       //write to mem things 
 
@@ -45,7 +45,7 @@ swap_evict(void)
       }
       f->spt_entry->swap_slot = idx;
     }
-  } 
+  // } 
   
 
   hash_delete(get_frame_table(), &f->elem);
