@@ -3,18 +3,21 @@
 
 struct hash mmap_table;
 
+/* Initializes the mmap hash table */
 void
 mmap_table_init (void)
 {
   hash_init (&mmap_table, mmap_hash, mmap_less, NULL);
 }
 
+/* Returns the mmap hash table */
 struct hash *
 get_mmap_table (void)
 {
   return &mmap_table;
 }
 
+/* Hashes addresses in mmap_data structs for the mmap_table hash table */
 unsigned
 mmap_hash (const struct hash_elem *hash_elem, void *aux UNUSED)
 {
@@ -23,6 +26,7 @@ mmap_hash (const struct hash_elem *hash_elem, void *aux UNUSED)
   return hash_int ((uint32_t)mmap_data->addr);
 }
 
+/* Used for comparing hash entries in the mmap_table */
 bool
 mmap_less (const struct hash_elem *elem1, const struct hash_elem *elem2,
            void *aux UNUSED)
@@ -31,6 +35,7 @@ mmap_less (const struct hash_elem *elem1, const struct hash_elem *elem2,
          < hash_entry (elem2, struct mmap_data, elem)->addr;
 }
 
+/* Helper function to create and initialize entries for our supplementary page table */
 struct spt_entry *
 create_spt_entry (void *upage, void *kpage, int swap_slot,
                   struct executable_data *executable_data,
@@ -51,6 +56,7 @@ create_spt_entry (void *upage, void *kpage, int swap_slot,
   return spt_entry;
 }
 
+/* Helper function to create and initialize data in an SPT for demand-paged executable files */
 struct executable_data *
 create_executable_data (struct file *file, off_t ofs, uint8_t *upage,
                         uint32_t read_bytes, uint32_t zero_bytes,
@@ -71,6 +77,7 @@ create_executable_data (struct file *file, off_t ofs, uint8_t *upage,
   return data;
 }
 
+/* Helper function to create and initialize entries for our mmap table */
 struct mmap_data *
 create_mmap_data (struct file *file, int id, void *addr, int read_bytes,
                   int zero_bytes, off_t ofs, int remaining_pages)

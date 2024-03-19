@@ -15,18 +15,21 @@ struct list frame_list;
 
 int mycount = 0;
 
+/* Returns the global frame hash map */
 struct hash *
 get_frame_table (void)
 {
   return &frame_table;
 }
 
+/* Returns the global frame list */
 struct list *
 get_frame_list (void)
 {
   return &frame_list;
 }
 
+/* Initializes the frame hash table, frame list */
 void
 falloc_init (void)
 {
@@ -34,6 +37,7 @@ falloc_init (void)
   list_init (&frame_list);
 }
 
+/* Allocates a new page associated with a frame, evicting if necessary */
 void *
 falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
 {
@@ -56,6 +60,7 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
   return page;
 }
 
+/* Frees the page associated with a frame */
 void
 falloc_free_frame (struct frame *f)
 {
@@ -73,6 +78,7 @@ falloc_free_frame (struct frame *f)
   lock_release (&f->frame_lock);
 }
 
+/* Hash function for the frame table */
 unsigned
 frame_hash (const struct hash_elem *frame_elem, void *aux UNUSED)
 {
@@ -80,6 +86,7 @@ frame_hash (const struct hash_elem *frame_elem, void *aux UNUSED)
   return hash_int ((uint32_t)frame->start_addr);
 }
 
+/* Comparison function for the frame table */
 bool
 frame_less (const struct hash_elem *frame_elem_1,
             const struct hash_elem *frame_elem_2, void *aux UNUSED)

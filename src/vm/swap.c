@@ -13,6 +13,7 @@
 
 struct bitmap *used_map = NULL;
 
+/* Initializes the swap bitmap */
 void
 swap_init (void)
 {
@@ -22,6 +23,7 @@ swap_init (void)
   used_map = bitmap_create (size);
 }
 
+/* Finds an allocated frame and evicts it from memory into swap or disk */
 void
 swap_evict (void)
 {
@@ -55,6 +57,7 @@ swap_evict (void)
   falloc_free_frame (f);
 }
 
+/* Loads a page from swap into a newly allocated frame */
 void
 swap_load (struct spt_entry *spt_entry)
 {
@@ -69,6 +72,7 @@ swap_load (struct spt_entry *spt_entry)
   pagedir_set_page (thread_current ()->pagedir, spt_entry->upage, frame, true);
 }
 
+/* Finds a frame to evict based on the second-chance algorithm */
 struct frame *
 frame_get_victim (void)
 {
@@ -77,13 +81,14 @@ frame_get_victim (void)
 
   struct list_elem *e = list_pop_front(frame);
   struct frame *f = list_entry(e, struct frame, list_elem);
-  while(pagedir_is_accessed(f->spt_entry->owner, f->spt_entry->upage)){
-    pagedir_set_accessed(f->spt_entry->owner, f->spt_entry->upage, false);
-    list_push_back(frame, e);
+  while(pagedir_is_accessed(f->spt_entry->owner, f->spt_entry->upage))
+    {
+      pagedir_set_accessed(f->spt_entry->owner, f->spt_entry->upage, false);
+      list_push_back(frame, e);
 
-    e = list_pop_front(frame);
-    f = list_entry(e, struct frame, list_elem);
-  }
+      e = list_pop_front(frame);
+      f = list_entry(e, struct frame, list_elem);
+    }
 
   return f;
 }
