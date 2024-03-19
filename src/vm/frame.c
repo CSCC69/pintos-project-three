@@ -12,7 +12,6 @@
 
 struct hash frame_table;
 struct list frame_list;
-struct lock frame_lock;
 
 int mycount = 0;
 
@@ -33,14 +32,15 @@ falloc_init (void)
 {
   hash_init (&frame_table, frame_hash, frame_less, NULL);
   list_init (&frame_list);
-  lock_init (&frame_lock);
 }
 
 void *
 falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
 {
-  lock_acquire (&frame_lock);
+  
   struct frame *f = malloc (sizeof (struct frame));
+  lock_init (&f->frame_lock);
+  lock_acquire (&f->frame_lock);
   void *page = NULL;
 
   while ((page = palloc_get_page (flags)) == NULL)
@@ -59,7 +59,7 @@ falloc_get_frame (enum palloc_flags flags, struct spt_entry *spt_entry)
 void
 falloc_free_frame (struct frame *f)
 {
-  lock_acquire (&frame_lock);
+  lock_acquire (&f->frame_lock);
   if (f->spt_entry->owner->pagedir != (void *)0xcccccccc)
     {
       ASSERT (f->spt_entry->owner != NULL);
@@ -70,7 +70,7 @@ falloc_free_frame (struct frame *f)
     palloc_free_page (f->spt_entry->kpage);
   if (f != NULL)
     free (f);
-  lock_release (&frame_lock);
+  lock_release (&f->frame_lock);
 }
 
 unsigned
