@@ -179,7 +179,7 @@ page_fault (struct intr_frame *f)
   if (fault_addr >= PHYS_BASE || fault_addr == 0 || fault_addr < (void*) 0x08048000)
   {
    if(user) {
-      PANIC("fault_addr: %p f->eip %p \n", fault_addr, f->eip);
+      // PANIC("fault_addr: %p f->eip %p \n", fault_addr, f->eip);
       exit (-1);
    }
   }
@@ -226,6 +226,20 @@ page_fault (struct intr_frame *f)
       }
 
       if (found->mmap_data != NULL) {
+         struct file *file = found->mmap_data->file;
+         // int id = found->mmap_data->id;
+         // void *addr = found->mmap_data->addr;
+         // int read_bytes = found->mmap_data->read_bytes;
+         // int zero_bytes = found->mmap_data->zero_bytes;
+         off_t ofs = found->mmap_data->ofs;
+         // int remaining_page_count = found->mmap_data->remaining_page_count;
+         // struct hash_elem elem = found->mmap_data->elem;
+
+         void* frame = falloc_get_frame(PAL_USER | PAL_ZERO, found);
+
+         file_read(file, frame, ofs);
+
+         return;
       }
 
       if (found->executable_data != NULL)

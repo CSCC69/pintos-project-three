@@ -27,29 +27,32 @@ swap_evict(void)
 {
   struct frame *f = frame_get_victim();
 
-  if(f->spt_entry->mmap_data != NULL){
-    // handle mmap
-  }
+  // if(pagedir_is_dirty(f->spt_entry->owner->pagedir, f->spt_entry->upage)) {
+    if(f->spt_entry->mmap_data != NULL){
+      //write to mem things 
 
-  // printf("f->start_addr: %p\n", f->start_addr);
-  // printf("hash size: %d\n", hash_size(get_frame_table()));
-  struct block *swap_disk = block_get_role(BLOCK_SWAP);
+    } else {
+      struct block *swap_disk = block_get_role(BLOCK_SWAP);
 
-  // printf("swap_evict\n");
+      // printf("swap_evict\n");
 
-  size_t idx = bitmap_scan_and_flip(used_map, 0, 1, false);
-  if (idx == BITMAP_ERROR)
-    PANIC("Swap is full");
-  // printf("swap_evict 1\n");
-  void* page_start = f->start_addr;
-  for (int i = 0; i < PGSIZE / BLOCK_SECTOR_SIZE; i++)
-  {
-    // printf("swap_evict 2 %d\n", i);
-    block_write(swap_disk, idx + i, page_start);
-    page_start += BLOCK_SECTOR_SIZE;
-  }
-//  printf("swap_evict 3\n");
-  f->spt_entry->swap_slot = idx;
+      size_t idx = bitmap_scan_and_flip(used_map, 0, 1, false);
+      if (idx == BITMAP_ERROR)
+        PANIC("Swap is full");
+      // printf("swap_evict 1\n");
+      void* page_start = f->start_addr;
+      for (int i = 0; i < PGSIZE / BLOCK_SECTOR_SIZE; i++)
+      {
+        // printf("swap_evict 2 %d\n", i);
+        block_write(swap_disk, idx + i, page_start);
+        page_start += BLOCK_SECTOR_SIZE;
+      }
+    //  printf("swap_evict 3\n");
+      f->spt_entry->swap_slot = idx;
+    }
+  // } 
+  
+
 //  printf("swap_evict 4\n");
   hash_delete(get_frame_table(), &f->elem);
   list_remove(&f->list_elem);
