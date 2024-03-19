@@ -221,9 +221,11 @@ page_fault (struct intr_frame *f)
       if (found->mmap_data != NULL)
         {
           struct file *file = found->mmap_data->file;
+          int read_bytes = found->mmap_data->read_bytes;
           off_t ofs = found->mmap_data->ofs;
           void *frame = falloc_get_frame (PAL_USER | PAL_ZERO, found);
-          file_read (file, frame, ofs);
+          file_seek (file, ofs);
+          file_read (file, frame, read_bytes);
 
           return;
         }

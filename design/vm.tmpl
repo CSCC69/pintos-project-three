@@ -30,6 +30,36 @@ Louis Ren <louis.ren@mail.utoronto.ca>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+spt_entry is used to to store supplemental page table entries/
+
+struct spt_entry
+{
+  void *upage; 
+  void *kpage;
+  int swap_slot;
+  struct executable_data *executable_data;
+  struct mmap_data *mmap_data;
+  struct hash_elem elem;
+  struct thread *owner;
+};
+
+executable_data is used to track each segment of executable files that should be demand paged from disk.
+
+struct executable_data
+{
+  struct file *file;
+  off_t ofs;
+  uint8_t *upage;
+  uint32_t read_bytes;
+  uint32_t zero_bytes;
+  bool writable;
+};
+
+
+Added to struct thread to track each thread's supplemental page table:
+struct hash spt;
+
+
 ---- ALGORITHMS ----
 
 >> A2: In a few paragraphs, describe your code for accessing the data
@@ -68,6 +98,27 @@ We chose a hashmap so that we could quickly find SPT entries in O(1) time from a
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+struct frame is used to track the frames and the spt entry that currently corresponds to it.
+
+struct frame
+{
+  struct hash_elem elem;
+  struct list_elem list_elem;
+  void *start_addr;
+  struct spt_entry *spt_entry;
+  struct lock frame_lock;
+};
+
+frame_table is used to locate that frame when swapping.
+struct hash frame_table;
+
+frame_list is used in our eviction algorithm.
+struct list frame_list;
+
+used_map is used to track swap slots on the swap disk.
+
+struct bitmap *used_map
 
 ---- ALGORITHMS ----
 
@@ -145,6 +196,20 @@ synchronization between the same frame.
 >> C1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+mmap_data is used to track each segment of mmap data that should be demand paged from disk.
+
+struct mmap_data
+{
+  struct file *file;
+  int id;
+  void *addr;
+  int read_bytes;
+  int zero_bytes;
+  off_t ofs;
+  int remaining_page_count;
+  struct hash_elem elem;
+};
 
 ---- ALGORITHMS ----
 
